@@ -4,8 +4,8 @@ using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// 1. Configure PostgreSQL Database Connection via EF Core
-var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
+// 1. Configure PostgreSQL Database Connection via EF Core (Priority: Environment Variable -> appsettings.json)
+var connectionString = Environment.GetEnvironmentVariable("DB_CONNECTION_STRING") ?? builder.Configuration.GetConnectionString("DefaultConnection");
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseNpgsql(connectionString));
 

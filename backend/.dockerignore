@@ -3,5 +3,4 @@ obj/
 .vs/
 .git/
 .github/
-appsettings.json
 appsettings.Development.json
