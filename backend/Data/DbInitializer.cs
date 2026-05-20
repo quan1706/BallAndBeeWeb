@@ -16,15 +16,23 @@ namespace BallAndBeeWEB.Api.Data
                 SeedSystemSettings(context);
             }
 
-            // Check if there is any data. If not, seed database
-            if (context.Categories.Any())
+            // Seed Categories if empty
+            if (!context.Categories.Any())
             {
-                return; // Database has been seeded
+                SeedCategories(context);
             }
 
-            SeedCategories(context);
-            SeedProducts(context);
-            SeedBlogPosts(context);
+            // Seed Products if empty
+            if (!context.Products.Any())
+            {
+                SeedProducts(context);
+            }
+
+            // Seed BlogPosts if empty
+            if (!context.BlogPosts.Any())
+            {
+                SeedBlogPosts(context);
+            }
         }
 
         private static void SeedCategories(AppDbContext context)
