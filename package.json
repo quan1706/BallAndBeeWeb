@@ -1,0 +1,7 @@
+{
+  "name": "ballandbeeweb-monorepo",
+  "private": true,
+  "scripts": {
+    "dev:frontend": "pnpm --filter frontend dev"
+  }
+}
