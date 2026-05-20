@@ -10,6 +10,7 @@ WORKDIR /src
 COPY ["backend/BallAndBeeWEB.Api.csproj", "backend/"]
 RUN dotnet restore "backend/BallAndBeeWEB.Api.csproj"
 COPY backend/ backend/
+RUN if [ ! -f backend/appsettings.json ]; then cp backend/appsettings.Example.json backend/appsettings.json; fi
 WORKDIR "/src/backend"
 RUN dotnet build "BallAndBeeWEB.Api.csproj" -c Release -o /app/build
 
