@@ -9,12 +9,12 @@ var connectionString = builder.Configuration.GetConnectionString("DefaultConnect
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseNpgsql(connectionString));
 
-// 2. Configure CORS to allow frontend Next.js requests
+// 2. Configure CORS to allow frontend Next.js requests (both local and deployed on Vercel)
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("CorsPolicy", policy =>
     {
-        policy.WithOrigins("http://localhost:3000", "http://localhost:3001") // Next.js ports
+        policy.SetIsOriginAllowed(origin => true) // Allow any origin to prevent CORS blocking on Vercel
               .AllowAnyHeader()
               .AllowAnyMethod()
               .AllowCredentials();
@@ -42,16 +42,13 @@ using (var scope = app.Services.CreateScope())
     }
 }
 
-// 4. Configure HTTP request pipeline
-if (app.Environment.IsDevelopment())
+// 4. Configure HTTP request pipeline (Enable Swagger UI globally for API testing on Cloud)
+app.UseSwagger();
+app.UseSwaggerUI(c =>
 {
-    app.UseSwagger();
-    app.UseSwaggerUI(c =>
-    {
-        c.SwaggerEndpoint("/swagger/v1/swagger.json", "Ball & Bee API v1");
-        c.RoutePrefix = "swagger"; // Access Swagger UI at /swagger
-    });
-}
+    c.SwaggerEndpoint("/swagger/v1/swagger.json", "Ball & Bee API v1");
+    c.RoutePrefix = "swagger"; // Access Swagger UI at /swagger
+});
 
 app.UseCors("CorsPolicy");
 
