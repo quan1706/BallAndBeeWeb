@@ -1,6 +1,0 @@
-bin/
-obj/
-.vs/
-.git/
-.github/
-appsettings.Development.json

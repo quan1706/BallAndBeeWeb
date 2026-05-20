@@ -1,28 +1,27 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-
-export const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
+import { supabase } from './supabase';
 
 // ============================================================
 // TypeScript Interfaces
 // ============================================================
 
 export interface Category {
-  id: number;
+  id: any; // Sử dụng any để tương thích cả string (UUID) và number từ UI cũ
   name: string;
   slug: string;
   color?: string;
-  parentId: number | null;
+  parentId: any; // Sử dụng any
   subcategories?: Category[];
 }
 
 export interface Product {
-  id: number;
+  id: any; // Sử dụng any
   name: string;
   price: number;
   slug: string;
-  category: string;       // Tên root category (e.g. "Nội thất")
-  categorySlug: string;   // Slug root category
-  subcategory: string | null; // Tên subcategory nếu có
+  category: string;       
+  categorySlug: string;   
+  subcategory: string | null; 
   description: string;
   material: string;
   size: string;
@@ -35,14 +34,14 @@ export interface Product {
 }
 
 export interface BlogPost {
-  id: number;
+  id: any; // Sử dụng any
   title: string;
   slug: string;
   topic: string;
   topicSlug: string;
   excerpt: string;
   content: string;
-  date: string; // YYYY-MM-DD
+  date: string; 
   readTime: string;
   image: string;
   featured: boolean;
@@ -59,7 +58,7 @@ export interface AdminStats {
 }
 
 export interface SystemSetting {
-  id?: number;
+  id?: any; // Sử dụng any
   name: string;
   tagline?: string;
   description?: string;
@@ -75,7 +74,7 @@ export interface SystemSetting {
 }
 
 export interface ContactMessage {
-  id?: number;
+  id?: any; // Sử dụng any
   name: string;
   phone: string;
   email?: string;
@@ -86,26 +85,25 @@ export interface ContactMessage {
 
 // ============================================================
 // Helper: Map backend ProductDto → Frontend Product
-// BE trả về: { id, name, price, slug, category, categorySlug, subcategory, ... }
 // ============================================================
-function mapProduct(p: any): Product {
+function mapProduct(p: any, imageUrl: string = ''): Product {
   return {
     id: p.id,
     name: p.name,
-    price: p.price,
+    price: Number(p.price),
     slug: p.slug,
-    category: p.category || '',
-    categorySlug: p.categorySlug || '',
-    subcategory: p.subcategory || null,
+    category: p.categories?.name || '', 
+    categorySlug: p.categories?.slug || '', 
+    subcategory: null,
     description: p.description || '',
     material: p.material || '',
     size: p.size || '',
     origin: p.origin || '',
     tags: Array.isArray(p.tags) ? p.tags : [],
-    featured: !!p.featured,
-    isNew: !!p.isNew,
-    visible: !!p.visible,
-    image: p.image || '',
+    featured: !!p.is_featured,
+    isNew: !!p.is_new,
+    visible: !!p.is_visible,
+    image: imageUrl || p.image || '',
   };
 }
 
@@ -114,68 +112,109 @@ function mapProduct(p: any): Product {
 // ============================================================
 
 export async function fetchCategories(): Promise<Category[]> {
-  const res = await fetch(`${API_BASE_URL}/categories`);
-  if (!res.ok) throw new Error('Failed to fetch categories');
-  return res.json();
-}
+  const { data, error } = await supabase
+    .from('categories')
+    .select('*')
+    .order('created_at', { ascending: true });
 
-// Trả về danh sách phẳng (flat) của tất cả categories kể cả subcategories
-export async function fetchCategoriesFlat(): Promise<Category[]> {
-  const res = await fetch(`${API_BASE_URL}/categories`);
-  if (!res.ok) throw new Error('Failed to fetch categories');
-  const tree: Category[] = await res.json();
+  if (error) throw new Error(error.message);
 
-  // Flatten tree recursively
-  const flatten = (cats: Category[]): Category[] => {
-    return cats.reduce<Category[]>((acc, cat) => {
-      acc.push({ ...cat, subcategories: [] });
-      if (cat.subcategories && cat.subcategories.length > 0) {
-        acc.push(...flatten(cat.subcategories));
-      }
-      return acc;
-    }, []);
+  // Xây dựng cây danh mục (tree) từ danh sách phẳng
+  const buildTree = (cats: any[], parentId: any = null): Category[] => {
+    return cats
+      .filter(c => c.parent_id === parentId)
+      .map(c => ({
+        id: c.id,
+        name: c.name,
+        slug: c.slug,
+        color: c.color || undefined,
+        parentId: c.parent_id,
+        subcategories: buildTree(cats, c.id)
+      }));
   };
 
-  return flatten(tree);
+  return buildTree(data || []);
+}
+
+export async function fetchCategoriesFlat(): Promise<Category[]> {
+  const { data, error } = await supabase
+    .from('categories')
+    .select('*')
+    .order('created_at', { ascending: true });
+
+  if (error) throw new Error(error.message);
+
+  return (data || []).map(c => ({
+    id: c.id,
+    name: c.name,
+    slug: c.slug,
+    color: c.color || undefined,
+    parentId: c.parent_id
+  }));
 }
 
 export async function createCategory(data: {
   name: string;
   slug: string;
   color?: string;
-  parentId?: number | null;
+  parentId?: any;
 }): Promise<Category> {
-  const res = await fetch(`${API_BASE_URL}/categories`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(data),
-  });
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({ message: 'Failed to create category' }));
-    throw new Error(err.message || 'Failed to create category');
-  }
-  return res.json();
+  const { data: cat, error } = await supabase
+    .from('categories')
+    .insert([{
+      name: data.name,
+      slug: data.slug,
+      color: data.color || null,
+      parent_id: data.parentId || null
+    }])
+    .select()
+    .single();
+
+  if (error) throw new Error(error.message);
+  
+  return {
+    id: cat.id,
+    name: cat.name,
+    slug: cat.slug,
+    color: cat.color || undefined,
+    parentId: cat.parent_id
+  };
 }
 
 export async function updateCategory(
-  id: number,
-  data: { name: string; slug: string; color?: string; parentId?: number | null }
+  id: any,
+  data: { name: string; slug: string; color?: string; parentId?: any }
 ): Promise<Category> {
-  const res = await fetch(`${API_BASE_URL}/categories/${id}`, {
-    method: 'PUT',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(data),
-  });
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({ message: 'Failed to update category' }));
-    throw new Error(err.message || 'Failed to update category');
-  }
-  return res.json();
+  const { data: cat, error } = await supabase
+    .from('categories')
+    .update({
+      name: data.name,
+      slug: data.slug,
+      color: data.color || null,
+      parent_id: data.parentId || null
+    })
+    .eq('id', id)
+    .select()
+    .single();
+
+  if (error) throw new Error(error.message);
+
+  return {
+    id: cat.id,
+    name: cat.name,
+    slug: cat.slug,
+    color: cat.color || undefined,
+    parentId: cat.parent_id
+  };
 }
 
-export async function deleteCategory(id: number): Promise<void> {
-  const res = await fetch(`${API_BASE_URL}/categories/${id}`, { method: 'DELETE' });
-  if (!res.ok) throw new Error('Failed to delete category');
+export async function deleteCategory(id: any): Promise<void> {
+  const { error } = await supabase
+    .from('categories')
+    .delete()
+    .eq('id', id);
+
+  if (error) throw new Error(error.message);
 }
 
 // ============================================================
@@ -188,29 +227,74 @@ export async function fetchProducts(filters?: {
   search?: string;
   limit?: number;
 }): Promise<Product[]> {
-  const url = new URL(`${API_BASE_URL}/products`);
-  if (filters?.categorySlug) url.searchParams.append('categorySlug', filters.categorySlug);
-  if (filters?.featured !== undefined) url.searchParams.append('featured', filters.featured.toString());
-  if (filters?.search) url.searchParams.append('search', filters.search);
-  if (filters?.limit) url.searchParams.append('limit', filters.limit.toString());
+  let query = supabase
+    .from('products')
+    .select(`
+      *,
+      categories (
+        name,
+        slug
+      ),
+      product_images (
+        image_url,
+        is_primary
+      )
+    `)
+    .order('created_at', { ascending: false });
 
-  const res = await fetch(url.toString());
-  if (!res.ok) throw new Error('Failed to fetch products');
-  const data = await res.json();
-  return data.map(mapProduct);
+  if (filters?.featured !== undefined) {
+    query = query.eq('is_featured', filters.featured);
+  }
+  if (filters?.search) {
+    query = query.ilike('name', `%${filters.search}%`);
+  }
+  if (filters?.limit) {
+    query = query.limit(filters.limit);
+  }
+
+  const { data, error } = await query;
+  if (error) throw new Error(error.message);
+
+  let filteredData = data || [];
+
+  // Filter theo categorySlug client-side hoặc join query
+  if (filters?.categorySlug) {
+    filteredData = filteredData.filter((p: any) => p.categories?.slug === filters.categorySlug);
+  }
+
+  return filteredData.map((p: any) => {
+    const primaryImg = p.product_images?.find((img: any) => img.is_primary) || p.product_images?.[0];
+    return mapProduct(p, primaryImg?.image_url || '');
+  });
 }
 
 export async function fetchProductBySlug(slug: string): Promise<Product> {
-  const res = await fetch(`${API_BASE_URL}/products/${slug}`);
-  if (!res.ok) throw new Error('Product not found');
-  return mapProduct(await res.json());
+  const { data, error } = await supabase
+    .from('products')
+    .select(`
+      *,
+      categories (
+        name,
+        slug
+      ),
+      product_images (
+        image_url,
+        is_primary
+      )
+    `)
+    .eq('slug', slug)
+    .single();
+
+  if (error) throw new Error('Product not found');
+  
+  const primaryImg = data.product_images?.find((img: any) => img.is_primary) || data.product_images?.[0];
+  return mapProduct(data, primaryImg?.image_url || '');
 }
 
 export async function createProduct(data: Omit<Product, 'id'>): Promise<Product> {
-  // Map frontend shape → backend shape
-  const body = {
+  return createProductRaw({
     name: data.name,
-    slug: data.slug || '',
+    slug: data.slug,
     price: data.price,
     description: data.description,
     material: data.material,
@@ -221,18 +305,8 @@ export async function createProduct(data: Omit<Product, 'id'>): Promise<Product>
     isNew: data.isNew,
     visible: data.visible,
     image: data.image,
-    categoryId: 0, // Will be set by caller via categoryId field
-  };
-  const res = await fetch(`${API_BASE_URL}/products`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(body),
+    categoryId: null
   });
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({ message: 'Failed to create product' }));
-    throw new Error(err.message || 'Failed to create product');
-  }
-  return mapProduct(await res.json());
 }
 
 export async function createProductRaw(data: {
@@ -248,22 +322,58 @@ export async function createProductRaw(data: {
   isNew?: boolean;
   visible?: boolean;
   image?: string;
-  categoryId: number;
+  categoryId: any; // Sử dụng any
 }): Promise<Product> {
-  const res = await fetch(`${API_BASE_URL}/products`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ slug: '', ...data }),
-  });
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({ message: 'Failed to create product' }));
-    throw new Error(err.message || 'Failed to create product');
+  const slug = data.slug || data.name.toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/(^-|-$)/g, '');
+
+  // 1. Lưu sản phẩm vào table products
+  const { data: p, error } = await supabase
+    .from('products')
+    .insert([{
+      name: data.name,
+      slug,
+      price: data.price,
+      description: data.description || '',
+      material: data.material || '',
+      size: data.size || '',
+      origin: data.origin || '',
+      tags: data.tags || [],
+      is_featured: !!data.featured,
+      is_new: data.isNew !== false,
+      is_visible: data.visible !== false,
+      category_id: data.categoryId || null
+    }])
+    .select('*, categories(name, slug)')
+    .single();
+
+  if (error) throw new Error(error.message);
+
+  // 2. Nếu có ảnh từ ImageKit, lưu link ảnh vào product_images
+  if (data.image) {
+    const urlParts = data.image.split('/');
+    const fileName = urlParts[urlParts.length - 1] || 'image.jpg';
+
+    const { error: imgError } = await supabase
+      .from('product_images')
+      .insert([{
+        product_id: p.id,
+        image_url: data.image,
+        image_path: `/${fileName}`,
+        file_id: 'uploaded_via_frontend',
+        is_primary: true,
+        position: 0
+      }]);
+
+    if (imgError) console.error('Lỗi khi liên kết ảnh sản phẩm:', imgError);
   }
-  return mapProduct(await res.json());
+
+  return mapProduct(p, data.image || '');
 }
 
 export async function updateProductRaw(
-  id: number,
+  id: any,
   data: {
     name: string;
     slug: string;
@@ -277,24 +387,66 @@ export async function updateProductRaw(
     isNew?: boolean;
     visible?: boolean;
     image?: string;
-    categoryId: number;
+    categoryId: any;
   }
 ): Promise<Product> {
-  const res = await fetch(`${API_BASE_URL}/products/${id}`, {
-    method: 'PUT',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(data),
-  });
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({ message: 'Failed to update product' }));
-    throw new Error(err.message || 'Failed to update product');
+  // 1. Cập nhật thông tin cơ bản của sản phẩm
+  const { data: p, error } = await supabase
+    .from('products')
+    .update({
+      name: data.name,
+      slug: data.slug,
+      price: data.price,
+      description: data.description || '',
+      material: data.material || '',
+      size: data.size || '',
+      origin: data.origin || '',
+      tags: data.tags || [],
+      is_featured: !!data.featured,
+      is_new: data.isNew !== false,
+      is_visible: data.visible !== false,
+      category_id: data.categoryId || null
+    })
+    .eq('id', id)
+    .select('*, categories(name, slug)')
+    .single();
+
+  if (error) throw new Error(error.message);
+
+  // 2. Cập nhật hình ảnh sản phẩm nếu có thay đổi
+  if (data.image) {
+    const urlParts = data.image.split('/');
+    const fileName = urlParts[urlParts.length - 1] || 'image.jpg';
+
+    // Xóa liên kết ảnh cũ trước
+    await supabase
+      .from('product_images')
+      .delete()
+      .eq('product_id', id);
+
+    // Chèn liên kết ảnh mới từ ImageKit
+    await supabase
+      .from('product_images')
+      .insert([{
+        product_id: id,
+        image_url: data.image,
+        image_path: `/${fileName}`,
+        file_id: 'uploaded_via_frontend',
+        is_primary: true,
+        position: 0
+      }]);
   }
-  return mapProduct(await res.json());
+
+  return mapProduct(p, data.image || '');
 }
 
-export async function deleteProduct(id: number): Promise<void> {
-  const res = await fetch(`${API_BASE_URL}/products/${id}`, { method: 'DELETE' });
-  if (!res.ok) throw new Error('Failed to delete product');
+export async function deleteProduct(id: any): Promise<void> {
+  const { error } = await supabase
+    .from('products')
+    .delete()
+    .eq('id', id);
+
+  if (error) throw new Error(error.message);
 }
 
 // ============================================================
@@ -306,75 +458,149 @@ export async function fetchBlogPosts(filters?: {
   limit?: number;
   topicSlug?: string;
 }): Promise<BlogPost[]> {
-  const url = new URL(`${API_BASE_URL}/blog`);
-  if (filters?.featured !== undefined) url.searchParams.append('featured', filters.featured.toString());
-  if (filters?.limit) url.searchParams.append('limit', filters.limit.toString());
+  let query = supabase
+    .from('blog_posts')
+    .select('*')
+    .order('created_at', { ascending: false });
 
-  const res = await fetch(url.toString());
-  if (!res.ok) throw new Error('Failed to fetch blog posts');
-  const data = await res.json();
+  if (filters?.featured !== undefined) {
+    query = query.eq('is_featured', filters.featured);
+  }
+  if (filters?.limit) {
+    query = query.limit(filters.limit);
+  }
+  if (filters?.topicSlug) {
+    query = query.eq('topic_slug', filters.topicSlug);
+  }
 
-  return data
-    .map((b: any) => ({
-      ...b,
-      date: b.date ? b.date.split('T')[0] : '',
-      excerpt: b.excerpt || '',
-      content: b.content || '',
-      readTime: b.readTime || '',
-      image: b.image || '',
-    }))
-    // Filter by topicSlug client-side since BE doesn't support it yet
-    .filter((b: BlogPost) => !filters?.topicSlug || b.topicSlug === filters.topicSlug);
+  const { data, error } = await query;
+  if (error) throw new Error(error.message);
+
+  return (data || []).map((b: any) => ({
+    id: b.id,
+    title: b.title,
+    slug: b.slug,
+    topic: b.topic,
+    topicSlug: b.topic_slug,
+    excerpt: b.excerpt || '',
+    content: b.content || '',
+    date: b.created_at ? b.created_at.split('T')[0] : '',
+    readTime: b.read_time || '',
+    image: b.image || '',
+    featured: !!b.is_featured,
+    status: b.status || 'draft',
+  }));
 }
 
 export async function fetchBlogPostBySlug(slug: string): Promise<BlogPost> {
-  const res = await fetch(`${API_BASE_URL}/blog/${slug}`);
-  if (!res.ok) throw new Error('Blog post not found');
-  const b = await res.json();
+  const { data, error } = await supabase
+    .from('blog_posts')
+    .select('*')
+    .eq('slug', slug)
+    .single();
+
+  if (error) throw new Error('Blog post not found');
+
   return {
-    ...b,
-    date: b.date ? b.date.split('T')[0] : '',
-    excerpt: b.excerpt || '',
-    content: b.content || '',
-    readTime: b.readTime || '',
-    image: b.image || '',
+    id: data.id,
+    title: data.title,
+    slug: data.slug,
+    topic: data.topic,
+    topicSlug: data.topic_slug,
+    excerpt: data.excerpt || '',
+    content: data.content || '',
+    date: data.created_at ? data.created_at.split('T')[0] : '',
+    readTime: data.read_time || '',
+    image: data.image || '',
+    featured: !!data.is_featured,
+    status: data.status || 'draft',
   };
 }
 
 export async function createBlogPost(data: Omit<BlogPost, 'id'>): Promise<BlogPost> {
-  const res = await fetch(`${API_BASE_URL}/blog`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ ...data, slug: data.slug || '' }),
-  });
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({ message: 'Failed to create blog post' }));
-    throw new Error(err.message || 'Failed to create blog post');
-  }
-  const b = await res.json();
-  return { ...b, date: b.date ? b.date.split('T')[0] : '' };
+  const { data: b, error } = await supabase
+    .from('blog_posts')
+    .insert([{
+      title: data.title,
+      slug: data.slug,
+      topic: data.topic,
+      topic_slug: data.topicSlug,
+      excerpt: data.excerpt || '',
+      content: data.content,
+      read_time: data.readTime || '',
+      image: data.image || '',
+      is_featured: !!data.featured,
+      status: data.status || 'draft'
+    }])
+    .select()
+    .single();
+
+  if (error) throw new Error(error.message);
+
+  return {
+    id: b.id,
+    title: b.title,
+    slug: b.slug,
+    topic: b.topic,
+    topicSlug: b.topic_slug,
+    excerpt: b.excerpt || '',
+    content: b.content || '',
+    date: b.created_at ? b.created_at.split('T')[0] : '',
+    readTime: b.read_time || '',
+    image: b.image || '',
+    featured: !!b.is_featured,
+    status: b.status || 'draft',
+  };
 }
 
 export async function updateBlogPost(
-  id: number,
+  id: any,
   data: Partial<Omit<BlogPost, 'id'>>
 ): Promise<BlogPost> {
-  const res = await fetch(`${API_BASE_URL}/blog/${id}`, {
-    method: 'PUT',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(data),
-  });
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({ message: 'Failed to update blog post' }));
-    throw new Error(err.message || 'Failed to update blog post');
-  }
-  const b = await res.json();
-  return { ...b, date: b.date ? b.date.split('T')[0] : '' };
+  const updateData: any = {};
+  if (data.title !== undefined) updateData.title = data.title;
+  if (data.slug !== undefined) updateData.slug = data.slug;
+  if (data.topic !== undefined) updateData.topic = data.topic;
+  if (data.topicSlug !== undefined) updateData.topic_slug = data.topicSlug;
+  if (data.excerpt !== undefined) updateData.excerpt = data.excerpt;
+  if (data.content !== undefined) updateData.content = data.content;
+  if (data.readTime !== undefined) updateData.read_time = data.readTime;
+  if (data.image !== undefined) updateData.image = data.image;
+  if (data.featured !== undefined) updateData.is_featured = !!data.featured;
+  if (data.status !== undefined) updateData.status = data.status;
+
+  const { data: b, error } = await supabase
+    .from('blog_posts')
+    .update(updateData)
+    .eq('id', id)
+    .select()
+    .single();
+
+  if (error) throw new Error(error.message);
+
+  return {
+    id: b.id,
+    title: b.title,
+    slug: b.slug,
+    topic: b.topic,
+    topicSlug: b.topic_slug,
+    excerpt: b.excerpt || '',
+    content: b.content || '',
+    date: b.created_at ? b.created_at.split('T')[0] : '',
+    readTime: b.read_time || '',
+    image: b.image || '',
+    featured: !!b.is_featured,
+    status: b.status || 'draft',
+  };
 }
 
-export async function deleteBlogPost(id: number): Promise<void> {
-  const res = await fetch(`${API_BASE_URL}/blog/${id}`, { method: 'DELETE' });
-  if (!res.ok) throw new Error('Failed to delete blog post');
+export async function deleteBlogPost(id: any): Promise<void> {
+  const { error } = await supabase
+    .from('blog_posts')
+    .delete()
+    .eq('id', id);
+
+  if (error) throw new Error(error.message);
 }
 
 // ============================================================
@@ -382,9 +608,24 @@ export async function deleteBlogPost(id: number): Promise<void> {
 // ============================================================
 
 export async function fetchAdminStats(): Promise<AdminStats> {
-  const res = await fetch(`${API_BASE_URL}/admin/stats`);
-  if (!res.ok) throw new Error('Failed to fetch admin stats');
-  return res.json();
+  // Lấy tổng số lượng bản ghi bằng Supabase API tối ưu
+  const [productsCount, categoriesCount, blogsCount, featuredProducts, newProducts, visibleProducts] = await Promise.all([
+    supabase.from('products').select('*', { count: 'exact', head: true }),
+    supabase.from('categories').select('*', { count: 'exact', head: true }),
+    supabase.from('blog_posts').select('*', { count: 'exact', head: true }),
+    supabase.from('products').select('*', { count: 'exact', head: true }).eq('is_featured', true),
+    supabase.from('products').select('*', { count: 'exact', head: true }).eq('is_new', true),
+    supabase.from('products').select('*', { count: 'exact', head: true }).eq('is_visible', true),
+  ]);
+
+  return {
+    totalProducts: productsCount.count || 0,
+    totalCategories: categoriesCount.count || 0,
+    totalBlogPosts: blogsCount.count || 0,
+    featuredProducts: featuredProducts.count || 0,
+    newProducts: newProducts.count || 0,
+    visibleProducts: visibleProducts.count || 0,
+  };
 }
 
 // ============================================================
@@ -392,22 +633,71 @@ export async function fetchAdminStats(): Promise<AdminStats> {
 // ============================================================
 
 export async function fetchSettings(): Promise<SystemSetting> {
-  const res = await fetch(`${API_BASE_URL}/settings`);
-  if (!res.ok) throw new Error('Failed to fetch system settings');
-  return res.json();
+  const { data, error } = await supabase
+    .from('system_settings')
+    .select('*')
+    .limit(1)
+    .single();
+
+  if (error) throw new Error(error.message);
+
+  return {
+    id: data.id,
+    name: data.name,
+    tagline: data.tagline || '',
+    description: data.description || '',
+    phone: data.phone || '',
+    zalo: data.zalo || '',
+    email: data.email || '',
+    address: data.address || '',
+    hours: data.hours || '',
+    facebook: data.facebook || '',
+    instagram: data.instagram || '',
+    tiktok: data.tiktok || '',
+    googleMapsEmbed: data.google_maps_embed || ''
+  };
 }
 
 export async function updateSettings(data: SystemSetting): Promise<SystemSetting> {
-  const res = await fetch(`${API_BASE_URL}/settings`, {
-    method: 'PUT',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(data),
-  });
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({ message: 'Failed to update system settings' }));
-    throw new Error(err.message || 'Failed to update system settings');
-  }
-  return res.json();
+  const updateData: any = {
+    name: data.name,
+    tagline: data.tagline || null,
+    description: data.description || null,
+    phone: data.phone || null,
+    zalo: data.zalo || null,
+    email: data.email || null,
+    address: data.address || null,
+    hours: data.hours || null,
+    facebook: data.facebook || null,
+    instagram: data.instagram || null,
+    tiktok: data.tiktok || null,
+    google_maps_embed: data.googleMapsEmbed || null
+  };
+
+  const { data: settings, error } = await supabase
+    .from('system_settings')
+    .update(updateData)
+    .eq('id', data.id)
+    .select()
+    .single();
+
+  if (error) throw new Error(error.message);
+
+  return {
+    id: settings.id,
+    name: settings.name,
+    tagline: settings.tagline || '',
+    description: settings.description || '',
+    phone: settings.phone || '',
+    zalo: settings.zalo || '',
+    email: settings.email || '',
+    address: settings.address || '',
+    hours: settings.hours || '',
+    facebook: settings.facebook || '',
+    instagram: settings.instagram || '',
+    tiktok: settings.tiktok || '',
+    googleMapsEmbed: settings.google_maps_embed || ''
+  };
 }
 
 // ============================================================
@@ -415,30 +705,72 @@ export async function updateSettings(data: SystemSetting): Promise<SystemSetting
 // ============================================================
 
 export async function submitContactMessage(data: ContactMessage): Promise<{ message: string; data: ContactMessage }> {
-  const res = await fetch(`${API_BASE_URL}/contact`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(data),
-  });
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({ message: 'Failed to submit contact message' }));
-    throw new Error(err.message || 'Failed to submit contact message');
-  }
-  return res.json();
+  const { data: msg, error } = await supabase
+    .from('contact_messages')
+    .insert([{
+      name: data.name,
+      phone: data.phone,
+      email: data.email || null,
+      message: data.message,
+      is_read: false
+    }])
+    .select()
+    .single();
+
+  if (error) throw new Error(error.message);
+
+  return {
+    message: 'Gửi tin nhắn liên hệ thành công!',
+    data: {
+      id: msg.id,
+      name: msg.name,
+      phone: msg.phone,
+      email: msg.email || undefined,
+      message: msg.message,
+      sentAt: msg.created_at ? msg.created_at.split('T')[0] : '',
+      isRead: !!msg.is_read
+    }
+  };
 }
 
 export async function fetchContactMessages(): Promise<ContactMessage[]> {
-  const res = await fetch(`${API_BASE_URL}/admin/contacts`);
-  if (!res.ok) throw new Error('Failed to fetch contact messages');
-  return res.json();
+  const { data, error } = await supabase
+    .from('contact_messages')
+    .select('*')
+    .order('created_at', { ascending: false });
+
+  if (error) throw new Error(error.message);
+
+  return (data || []).map(msg => ({
+    id: msg.id,
+    name: msg.name,
+    phone: msg.phone,
+    email: msg.email || undefined,
+    message: msg.message,
+    sentAt: msg.created_at ? msg.created_at.split('T')[0] : '',
+    isRead: !!msg.is_read
+  }));
 }
 
-export async function markContactMessageAsRead(id: number): Promise<ContactMessage> {
-  const res = await fetch(`${API_BASE_URL}/admin/contacts/${id}/read`, {
-    method: 'PUT',
-  });
-  if (!res.ok) throw new Error('Failed to mark contact message as read');
-  return res.json();
+export async function markContactMessageAsRead(id: any): Promise<ContactMessage> {
+  const { data: msg, error } = await supabase
+    .from('contact_messages')
+    .update({ is_read: true })
+    .eq('id', id)
+    .select()
+    .single();
+
+  if (error) throw new Error(error.message);
+
+  return {
+    id: msg.id,
+    name: msg.name,
+    phone: msg.phone,
+    email: msg.email || undefined,
+    message: msg.message,
+    sentAt: msg.created_at ? msg.created_at.split('T')[0] : '',
+    isRead: !!msg.is_read
+  };
 }
 
 // ============================================================
@@ -449,7 +781,7 @@ export function useCategories() {
   return useQuery<Category[], Error>({
     queryKey: ['categories'],
     queryFn: fetchCategories,
-    staleTime: 5 * 60 * 1000, // 5 minutes
+    staleTime: 5 * 60 * 1000, 
   });
 }
 
@@ -475,7 +807,7 @@ export function useCreateCategory() {
 export function useUpdateCategory() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: ({ id, data }: { id: number; data: Parameters<typeof updateCategory>[1] }) =>
+    mutationFn: ({ id, data }: { id: any; data: Parameters<typeof updateCategory>[1] }) =>
       updateCategory(id, data),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['categories'] });
@@ -529,7 +861,7 @@ export function useCreateProduct() {
 export function useUpdateProduct() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: ({ id, data }: { id: number; data: Parameters<typeof updateProductRaw>[1] }) =>
+    mutationFn: ({ id, data }: { id: any; data: Parameters<typeof updateProductRaw>[1] }) =>
       updateProductRaw(id, data),
     onSuccess: (_data, variables) => {
       qc.invalidateQueries({ queryKey: ['products'] });
@@ -583,7 +915,7 @@ export function useCreateBlogPost() {
 export function useUpdateBlogPost() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: ({ id, data }: { id: number; data: Parameters<typeof updateBlogPost>[1] }) =>
+    mutationFn: ({ id, data }: { id: any; data: Parameters<typeof updateBlogPost>[1] }) =>
       updateBlogPost(id, data),
     onSuccess: (_data, variables) => {
       qc.invalidateQueries({ queryKey: ['blogs'] });
@@ -611,7 +943,7 @@ export function useAdminStats() {
   return useQuery<AdminStats, Error>({
     queryKey: ['admin-stats'],
     queryFn: fetchAdminStats,
-    staleTime: 60 * 1000, // 1 minute
+    staleTime: 60 * 1000, 
   });
 }
 
@@ -623,7 +955,7 @@ export function useSettings() {
   return useQuery<SystemSetting, Error>({
     queryKey: ['settings'],
     queryFn: fetchSettings,
-    staleTime: 10 * 60 * 1000, // 10 minutes
+    staleTime: 10 * 60 * 1000, 
   });
 }
 
@@ -651,7 +983,7 @@ export function useContactMessages() {
   return useQuery<ContactMessage[], Error>({
     queryKey: ['contact-messages'],
     queryFn: fetchContactMessages,
-    staleTime: 30 * 1000, // 30 seconds
+    staleTime: 30 * 1000, 
   });
 }
 
@@ -664,3 +996,6 @@ export function useMarkContactMessageAsRead() {
     },
   });
 }
+
+// Export API_BASE_URL placeholder để duy trì tính tương thích với các component UI cũ
+export const API_BASE_URL = '/api';

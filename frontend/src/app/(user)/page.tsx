@@ -1,21 +1,73 @@
 'use client';
 
+import { useEffect } from 'react';
 import Link from 'next/link';
-import { ArrowRight, Loader2 } from 'lucide-react';
-import { useCategories, useProducts, useBlogPosts } from '@/lib/api';
+import { ArrowRight, Loader2, AlertCircle } from 'lucide-react';
+import { useCategories, useProducts, useBlogPosts, API_BASE_URL } from '@/lib/api';
 
 export default function HomePage() {
-  const { data: categories = [], isLoading: isLoadingCategories } = useCategories();
-  const { data: products = [], isLoading: isLoadingProducts } = useProducts({ featured: true });
-  const { data: blogPosts = [], isLoading: isLoadingBlogs } = useBlogPosts();
+  const { 
+    data: categories = [], 
+    isLoading: isLoadingCategories, 
+    isError: isErrorCategories, 
+    error: errorCategories 
+  } = useCategories();
+
+  const { 
+    data: products = [], 
+    isLoading: isLoadingProducts, 
+    isError: isErrorProducts, 
+    error: errorProducts 
+  } = useProducts({ featured: true });
+
+  const { 
+    data: blogPosts = [], 
+    isLoading: isLoadingBlogs, 
+    isError: isErrorBlogs, 
+    error: errorBlogs 
+  } = useBlogPosts();
+
+  useEffect(() => {
+    console.log("=== BALL & BEE WEB CLIENT-SIDE DEBUG ===");
+    console.log("API_BASE_URL hiện tại:", API_BASE_URL);
+    console.log("process.env.NEXT_PUBLIC_API_URL:", process.env.NEXT_PUBLIC_API_URL);
+    console.log("Categories:", { length: categories.length, isLoadingCategories, isErrorCategories, errorCategories });
+    console.log("Products (Featured):", { length: products.length, isLoadingProducts, isErrorProducts, errorProducts });
+    console.log("BlogPosts:", { length: blogPosts.length, isLoadingBlogs, isErrorBlogs, errorBlogs });
+    console.log("=========================================");
+  }, [categories, products, blogPosts, isLoadingCategories, isLoadingProducts, isLoadingBlogs, isErrorCategories, isErrorProducts, isErrorBlogs, errorCategories, errorProducts, errorBlogs]);
 
   const featuredProducts = products.slice(0, 4);
   const featuredBlogs = blogPosts.filter((b) => b.featured).slice(0, 3);
 
-  const isLoading = isLoadingCategories || isLoadingProducts || isLoadingBlogs;
+  const isAnyError = isErrorCategories || isErrorProducts || isErrorBlogs;
 
   return (
     <div>
+      {/* Debug Banner - Chỉ hiển thị khi dùng localhost trên Vercel hoặc khi xảy ra lỗi */}
+      {isAnyError && (
+        <div className="bg-red-50 border-b border-red-200 p-4">
+          <div className="max-w-7xl mx-auto flex items-center justify-between gap-4">
+            <div className="flex items-center gap-3 text-red-800">
+              <AlertCircle className="w-5 h-5 flex-shrink-0 text-red-600" />
+              <div>
+                <p className="font-semibold text-sm">Không thể kết nối đến hệ thống máy chủ (Backend)!</p>
+                <p className="text-xs text-red-600 mt-0.5">
+                  Đang cố gắng kết nối tới: <code className="bg-red-100 px-1.5 py-0.5 rounded font-mono text-red-700 font-bold">{API_BASE_URL}</code>.
+                  Vui lòng đảm bảo Backend Render đã hoạt động.
+                </p>
+              </div>
+            </div>
+            <button 
+              onClick={() => window.location.reload()} 
+              className="px-4 py-1.5 bg-red-600 text-white rounded text-xs font-semibold hover:bg-red-700 transition-colors"
+            >
+              Tải lại trang
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Hero Section */}
       <section
         className="relative h-[90vh] bg-cover bg-center flex items-center"
@@ -65,6 +117,15 @@ export default function HomePage() {
                 <div key={i} className="animate-pulse bg-gray-100 rounded-xl aspect-[4/3]" />
               ))}
             </div>
+          ) : isErrorCategories ? (
+            <div className="text-center py-12 text-gray-500 bg-gray-50 rounded-xl border border-dashed">
+              <AlertCircle className="w-8 h-8 text-gray-400 mx-auto mb-2" />
+              <p className="text-sm font-medium">Không thể tải danh mục sản phẩm lúc này</p>
+            </div>
+          ) : categories.length === 0 ? (
+            <div className="text-center py-12 text-gray-500">
+              <p className="text-sm">Chưa có danh mục sản phẩm nào.</p>
+            </div>
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
               {categories.filter(c => c.parentId === null).map((category) => (
@@ -106,6 +167,15 @@ export default function HomePage() {
               {[1, 2, 3, 4].map((i) => (
                 <div key={i} className="animate-pulse bg-white rounded-lg overflow-hidden h-[380px]" />
               ))}
+            </div>
+          ) : isErrorProducts ? (
+            <div className="text-center py-16 text-gray-500 bg-white rounded-xl border border-gray-100">
+              <AlertCircle className="w-8 h-8 text-gray-400 mx-auto mb-2" />
+              <p className="text-sm font-medium">Không thể tải danh sách sản phẩm nổi bật</p>
+            </div>
+          ) : featuredProducts.length === 0 ? (
+            <div className="text-center py-16 bg-white rounded-xl text-gray-500">
+              <p className="text-sm">Hiện chưa có sản phẩm nổi bật nào.</p>
             </div>
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
@@ -158,6 +228,15 @@ export default function HomePage() {
               {[1, 2, 3].map((i) => (
                 <div key={i} className="animate-pulse bg-white rounded-lg overflow-hidden h-[320px]" />
               ))}
+            </div>
+          ) : isErrorBlogs ? (
+            <div className="text-center py-12 text-gray-500 bg-gray-50 rounded-xl border border-dashed">
+              <AlertCircle className="w-8 h-8 text-gray-400 mx-auto mb-2" />
+              <p className="text-sm font-medium">Không thể tải các bài viết cảm hứng</p>
+            </div>
+          ) : featuredBlogs.length === 0 ? (
+            <div className="text-center py-12 text-gray-500">
+              <p className="text-sm">Chưa có bài viết nổi bật nào.</p>
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">

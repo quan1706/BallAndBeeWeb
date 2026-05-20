@@ -1,14 +1,13 @@
 import { useState, useCallback } from 'react';
-import { API_BASE_URL } from './api';
 
-// ImageKit upload configuration
+// Cấu hình endpoint upload của ImageKit
 const IMAGEKIT_UPLOAD_URL = 'https://upload.imagekit.io/api/v1/files/upload';
 
 export interface UploadedImage {
-  url: string;           // Full optimized URL from ImageKit CDN
-  fileId: string;        // Unique file ID from ImageKit
-  name: string;          // File name stored in ImageKit
-  thumbnailUrl: string;  // Auto-generated thumbnail URL
+  url: string;           
+  fileId: string;        
+  name: string;          
+  thumbnailUrl: string;  
 }
 
 export interface UploadProgress {
@@ -17,26 +16,35 @@ export interface UploadProgress {
   error?: string;
 }
 
-// Fetch authentication signature from our backend
+// Fetch authentication signature từ API Route Next.js mới của chúng ta
 async function getAuthSignature(): Promise<{
   token: string;
   expire: number;
   signature: string;
 }> {
-  const res = await fetch(`${API_BASE_URL}/imagekit/auth`);
+  const res = await fetch('/api/imagekit-auth');
   if (!res.ok) throw new Error('Failed to get upload authentication');
   return res.json();
 }
 
-// Fetch public config (publicKey + urlEndpoint) from backend
+// Lấy public config trực tiếp từ các biến môi trường Client-side của Next.js
 async function getImageKitConfig(): Promise<{
   urlEndpoint: string;
   publicKey: string;
   defaultFolder: string;
 }> {
-  const res = await fetch(`${API_BASE_URL}/imagekit/config`);
-  if (!res.ok) throw new Error('Failed to get ImageKit config');
-  return res.json();
+  const urlEndpoint = process.env.NEXT_PUBLIC_IMAGEKIT_URL_ENDPOINT || '';
+  const publicKey = process.env.NEXT_PUBLIC_IMAGEKIT_PUBLIC_KEY || '';
+  
+  if (!urlEndpoint || !publicKey) {
+    console.warn('Missing ImageKit public configuration in .env.local');
+  }
+
+  return {
+    urlEndpoint,
+    publicKey,
+    defaultFolder: '/ballandbee/products',
+  };
 }
 
 // Generate optimized ImageKit URL with transformation parameters
