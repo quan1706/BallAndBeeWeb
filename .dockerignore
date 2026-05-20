@@ -1,0 +1,6 @@
+frontend/
+.git/
+.github/
+**/bin/
+**/obj/
+.vs/
