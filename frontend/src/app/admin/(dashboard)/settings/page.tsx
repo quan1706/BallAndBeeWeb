@@ -1,10 +1,46 @@
 'use client';
 
-import { useState } from 'react';
-import { companyInfo } from '@/data/mockData';
+import { useState, useEffect } from 'react';
+import { useSettings, useUpdateSettings } from '@/lib/api';
 
 export default function AdminSettings() {
   const [activeTab, setActiveTab] = useState<'company' | 'contact' | 'map'>('company');
+  const { data: settings, isLoading } = useSettings();
+  const updateSettingsMutation = useUpdateSettings();
+
+  const [formData, setFormData] = useState({
+    name: '',
+    tagline: '',
+    description: '',
+    phone: '',
+    zalo: '',
+    email: '',
+    address: '',
+    hours: '',
+    facebook: '',
+    instagram: '',
+    tiktok: '',
+    googleMapsEmbed: '',
+  });
+
+  useEffect(() => {
+    if (settings) {
+      setFormData({
+        name: settings.name || '',
+        tagline: settings.tagline || '',
+        description: settings.description || '',
+        phone: settings.phone || '',
+        zalo: settings.zalo || '',
+        email: settings.email || '',
+        address: settings.address || '',
+        hours: settings.hours || '',
+        facebook: settings.facebook || '',
+        instagram: settings.instagram || '',
+        tiktok: settings.tiktok || '',
+        googleMapsEmbed: settings.googleMapsEmbed || '',
+      });
+    }
+  }, [settings]);
 
   const tabs = [
     { id: 'company', label: 'Thông tin công ty' },
@@ -13,8 +49,33 @@ export default function AdminSettings() {
   ] as const;
 
   const handleSave = () => {
-    alert('Lưu thay đổi thành công!');
+    updateSettingsMutation.mutate(formData, {
+      onSuccess: () => {
+        alert('Lưu thay đổi thành công!');
+      },
+      onError: (err) => {
+        alert('Có lỗi xảy ra: ' + err.message);
+      },
+    });
   };
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-[#C8954A]" />
+      </div>
+    );
+  }
+
+  // Extract source from iframe code for preview
+  const getMapSrc = (embedCode: string) => {
+    if (!embedCode) return '';
+    if (embedCode.startsWith('http')) return embedCode;
+    const match = embedCode.match(/src="([^"]+)"/);
+    return match ? match[1] : '';
+  };
+
+  const previewSrc = getMapSrc(formData.googleMapsEmbed);
 
   return (
     <div className="max-w-4xl text-gray-800">
@@ -55,7 +116,8 @@ export default function AdminSettings() {
               <label className="block text-sm font-medium mb-2 text-[#1E3A5F]">Tên công ty</label>
               <input
                 type="text"
-                defaultValue={companyInfo.name}
+                value={formData.name}
+                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                 className="w-full px-4 py-3 rounded-lg border border-[#E8E0D5] focus:border-[#C8954A] focus:ring-2 focus:ring-[#C8954A]/20 outline-none transition-all"
               />
             </div>
@@ -64,7 +126,8 @@ export default function AdminSettings() {
               <label className="block text-sm font-medium mb-2 text-[#1E3A5F]">Slogan</label>
               <input
                 type="text"
-                defaultValue={companyInfo.tagline}
+                value={formData.tagline}
+                onChange={(e) => setFormData({ ...formData, tagline: e.target.value })}
                 className="w-full px-4 py-3 rounded-lg border border-[#E8E0D5] focus:border-[#C8954A] focus:ring-2 focus:ring-[#C8954A]/20 outline-none transition-all"
               />
             </div>
@@ -73,14 +136,19 @@ export default function AdminSettings() {
               <label className="block text-sm font-medium mb-2 text-[#1E3A5F]">Giới thiệu ngắn</label>
               <textarea
                 rows={4}
-                defaultValue={companyInfo.description}
+                value={formData.description}
+                onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                 className="w-full px-4 py-3 rounded-lg border border-[#E8E0D5] focus:border-[#C8954A] focus:ring-2 focus:ring-[#C8954A]/20 outline-none resize-none transition-all"
               />
             </div>
 
             <div className="flex justify-end">
-              <button onClick={handleSave} className="px-6 py-3 bg-[#C8954A] text-white rounded-lg hover:bg-[#B8854A] transition-all font-semibold cursor-pointer">
-                Lưu thay đổi
+              <button
+                onClick={handleSave}
+                disabled={updateSettingsMutation.isPending}
+                className="px-6 py-3 bg-[#C8954A] text-white rounded-lg hover:bg-[#B8854A] disabled:bg-[#C8954A]/60 disabled:cursor-not-allowed transition-all font-semibold cursor-pointer"
+              >
+                {updateSettingsMutation.isPending ? 'Đang lưu...' : 'Lưu thay đổi'}
               </button>
             </div>
           </div>
@@ -96,7 +164,8 @@ export default function AdminSettings() {
                 <label className="block text-sm font-medium mb-2 text-[#1E3A5F]">📞 Số điện thoại</label>
                 <input
                   type="tel"
-                  defaultValue={companyInfo.phone}
+                  value={formData.phone}
+                  onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
                   className="w-full px-4 py-3 rounded-lg border border-[#E8E0D5] focus:border-[#C8954A] focus:ring-2 focus:ring-[#C8954A]/20 outline-none transition-all"
                 />
               </div>
@@ -104,7 +173,8 @@ export default function AdminSettings() {
                 <label className="block text-sm font-medium mb-2 text-[#1E3A5F]">💬 Zalo</label>
                 <input
                   type="tel"
-                  defaultValue={companyInfo.zalo}
+                  value={formData.zalo}
+                  onChange={(e) => setFormData({ ...formData, zalo: e.target.value })}
                   className="w-full px-4 py-3 rounded-lg border border-[#E8E0D5] focus:border-[#C8954A] focus:ring-2 focus:ring-[#C8954A]/20 outline-none transition-all"
                 />
               </div>
@@ -114,7 +184,8 @@ export default function AdminSettings() {
               <label className="block text-sm font-medium mb-2 text-[#1E3A5F]">📧 Email</label>
               <input
                 type="email"
-                defaultValue={companyInfo.email}
+                value={formData.email}
+                onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                 className="w-full px-4 py-3 rounded-lg border border-[#E8E0D5] focus:border-[#C8954A] focus:ring-2 focus:ring-[#C8954A]/20 outline-none transition-all"
               />
             </div>
@@ -123,7 +194,8 @@ export default function AdminSettings() {
               <label className="block text-sm font-medium mb-2 text-[#1E3A5F]">📍 Địa chỉ</label>
               <input
                 type="text"
-                defaultValue={companyInfo.address}
+                value={formData.address}
+                onChange={(e) => setFormData({ ...formData, address: e.target.value })}
                 className="w-full px-4 py-3 rounded-lg border border-[#E8E0D5] focus:border-[#C8954A] focus:ring-2 focus:ring-[#C8954A]/20 outline-none transition-all"
               />
             </div>
@@ -132,7 +204,8 @@ export default function AdminSettings() {
               <label className="block text-sm font-medium mb-2 text-[#1E3A5F]">🕐 Giờ làm việc</label>
               <input
                 type="text"
-                defaultValue={companyInfo.hours}
+                value={formData.hours}
+                onChange={(e) => setFormData({ ...formData, hours: e.target.value })}
                 className="w-full px-4 py-3 rounded-lg border border-[#E8E0D5] focus:border-[#C8954A] focus:ring-2 focus:ring-[#C8954A]/20 outline-none transition-all"
               />
             </div>
@@ -144,7 +217,8 @@ export default function AdminSettings() {
                   <label className="block text-sm font-medium mb-2 text-[#1E3A5F]">Facebook URL</label>
                   <input
                     type="url"
-                    defaultValue={companyInfo.social.facebook}
+                    value={formData.facebook}
+                    onChange={(e) => setFormData({ ...formData, facebook: e.target.value })}
                     className="w-full px-4 py-3 rounded-lg border border-[#E8E0D5] focus:border-[#C8954A] focus:ring-2 focus:ring-[#C8954A]/20 outline-none transition-all"
                   />
                 </div>
@@ -152,7 +226,8 @@ export default function AdminSettings() {
                   <label className="block text-sm font-medium mb-2 text-[#1E3A5F]">Instagram URL</label>
                   <input
                     type="url"
-                    defaultValue={companyInfo.social.instagram}
+                    value={formData.instagram}
+                    onChange={(e) => setFormData({ ...formData, instagram: e.target.value })}
                     className="w-full px-4 py-3 rounded-lg border border-[#E8E0D5] focus:border-[#C8954A] focus:ring-2 focus:ring-[#C8954A]/20 outline-none transition-all"
                   />
                 </div>
@@ -160,7 +235,8 @@ export default function AdminSettings() {
                   <label className="block text-sm font-medium mb-2 text-[#1E3A5F]">TikTok URL</label>
                   <input
                     type="url"
-                    defaultValue={companyInfo.social.tiktok}
+                    value={formData.tiktok}
+                    onChange={(e) => setFormData({ ...formData, tiktok: e.target.value })}
                     className="w-full px-4 py-3 rounded-lg border border-[#E8E0D5] focus:border-[#C8954A] focus:ring-2 focus:ring-[#C8954A]/20 outline-none transition-all"
                   />
                 </div>
@@ -168,8 +244,12 @@ export default function AdminSettings() {
             </div>
 
             <div className="flex justify-end">
-              <button onClick={handleSave} className="px-6 py-3 bg-[#C8954A] text-white rounded-lg hover:bg-[#B8854A] transition-all font-semibold cursor-pointer">
-                Lưu thay đổi
+              <button
+                onClick={handleSave}
+                disabled={updateSettingsMutation.isPending}
+                className="px-6 py-3 bg-[#C8954A] text-white rounded-lg hover:bg-[#B8854A] disabled:bg-[#C8954A]/60 disabled:cursor-not-allowed transition-all font-semibold cursor-pointer"
+              >
+                {updateSettingsMutation.isPending ? 'Đang lưu...' : 'Lưu thay đổi'}
               </button>
             </div>
           </div>
@@ -181,34 +261,42 @@ export default function AdminSettings() {
         <div className="bg-white rounded-lg shadow-sm p-6 border border-[#E8E0D5]/30">
           <div className="space-y-6">
             <div>
-              <label className="block text-sm font-medium mb-2 text-[#1E3A5F]">Google Maps Embed Code</label>
+              <label className="block text-sm font-medium mb-2 text-[#1E3A5F]">Google Maps Embed Code (hoặc Url nhúng)</label>
               <textarea
                 rows={6}
+                value={formData.googleMapsEmbed}
+                onChange={(e) => setFormData({ ...formData, googleMapsEmbed: e.target.value })}
                 placeholder='<iframe src="..." width="600" height="450"...></iframe>'
                 className="w-full px-4 py-3 rounded-lg border border-[#E8E0D5] focus:border-[#C8954A] focus:ring-2 focus:ring-[#C8954A]/20 outline-none resize-none font-mono text-sm"
               />
               <p className="text-xs text-[#888888] mt-2 font-medium">
-                Lấy code tại Google Maps → Chia sẻ → Nhúng bản đồ
+                Lấy code tại Google Maps → Chia sẻ → Nhúng bản đồ, hoặc dán trực tiếp đường dẫn src.
               </p>
             </div>
 
-            <div>
-              <label className="block text-sm font-medium mb-3 text-[#1E3A5F]">Xem trước</label>
-              <div className="rounded-lg overflow-hidden border border-[#E8E0D5]/50">
-                <iframe
-                  src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3833.8983128073786!2d108.21992687589745!3d16.072661884621964!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x314219c8b5cf238f%3A0x69a4f8e9eae7ec0f!2zxJDDoCBO4bq1bmcsIFZp4buHdCBOYW0!5e0!3m2!1sen!2s!4v1699999999999!5m2!1sen!2s"
-                  width="100%"
-                  height="300"
-                  style={{ border: 0 }}
-                  allowFullScreen
-                  loading="lazy"
-                />
+            {previewSrc && (
+              <div>
+                <label className="block text-sm font-medium mb-3 text-[#1E3A5F]">Xem trước</label>
+                <div className="rounded-lg overflow-hidden border border-[#E8E0D5]/50">
+                  <iframe
+                    src={previewSrc}
+                    width="100%"
+                    height="300"
+                    style={{ border: 0 }}
+                    allowFullScreen
+                    loading="lazy"
+                  />
+                </div>
               </div>
-            </div>
+            )}
 
             <div className="flex justify-end">
-              <button onClick={handleSave} className="px-6 py-3 bg-[#C8954A] text-white rounded-lg hover:bg-[#B8854A] transition-all font-semibold cursor-pointer">
-                Lưu thay đổi
+              <button
+                onClick={handleSave}
+                disabled={updateSettingsMutation.isPending}
+                className="px-6 py-3 bg-[#C8954A] text-white rounded-lg hover:bg-[#B8854A] disabled:bg-[#C8954A]/60 disabled:cursor-not-allowed transition-all font-semibold cursor-pointer"
+              >
+                {updateSettingsMutation.isPending ? 'Đang lưu...' : 'Lưu thay đổi'}
               </button>
             </div>
           </div>

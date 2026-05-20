@@ -1,23 +1,53 @@
 'use client';
 
-import { useState } from 'react';
-import { ChevronDown, ChevronRight, Edit, Trash2, Plus, GripVertical, FolderPlus, Folder } from 'lucide-react';
-import { categories as initialCategories, Category } from '@/data/mockData';
+import { useState, useMemo } from 'react';
+import { ChevronDown, ChevronRight, Edit, Trash2, Plus, FolderPlus, Folder, Loader2, AlertCircle } from 'lucide-react';
+import { useCategories, useCategoriesFlat, useCreateCategory, useUpdateCategory, useDeleteCategory, Category } from '@/lib/api';
+
+// Helper: generate slug from Vietnamese name
+function toSlug(name: string): string {
+  return name
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[đĐ]/g, 'd')
+    .replace(/([^a-z0-9\s-]|)/g, '')
+    .replace(/\s+/g, '-')
+    .replace(/-+/g, '-')
+    .trim();
+}
+
+// Flatten category tree to list
+function flattenCategories(cats: Category[], result: Category[] = []): Category[] {
+  for (const cat of cats) {
+    result.push({ ...cat, subcategories: [] });
+    if (cat.subcategories && cat.subcategories.length > 0) {
+      flattenCategories(cat.subcategories, result);
+    }
+  }
+  return result;
+}
 
 export default function AdminCategories() {
-  const [localCategories, setLocalCategories] = useState<Category[]>(initialCategories);
-  const [expandedCats, setExpandedCats] = useState<number[]>([1, 4]); // Mặc định mở rộng Nội thất và Kitchen & Dining
-  const [selectedCatId, setSelectedCatId] = useState<number | null>(null);
+  const { data: categoryTree = [], isLoading, isError, refetch } = useCategories();
+  const createCategory = useCreateCategory();
+  const updateCategory = useUpdateCategory();
+  const deleteCategory = useDeleteCategory();
 
-  // Form states cho thêm/sửa
-  const [isAdding, setIsAdding] = useState<boolean>(false);
+  // Flatten tree to use for lookups
+  const flatCategories = useMemo(() => flattenCategories(categoryTree), [categoryTree]);
+
+  const [expandedCats, setExpandedCats] = useState<number[]>([]);
+  const [selectedCatId, setSelectedCatId] = useState<number | null>(null);
+  const [isAdding, setIsAdding] = useState(false);
   const [addingParentId, setAddingParentId] = useState<number | null>(null);
-  
+  const [deletingId, setDeletingId] = useState<number | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
   const [formData, setFormData] = useState({
     name: '',
     slug: '',
     color: '#C8954A',
-    parentId: '' as string | number,
+    parentId: 'root' as string | number,
   });
 
   const toggleCategory = (id: number) => {
@@ -26,28 +56,10 @@ export default function AdminCategories() {
     );
   };
 
-  const selectedCat = localCategories.find((c) => c.id === selectedCatId);
+  const selectedCat = flatCategories.find((c) => c.id === selectedCatId);
 
-  // Lấy các danh mục gốc
-  const rootCategories = localCategories.filter((c) => c.parentId === null);
-
-  // Lấy danh mục con của một danh mục
-  const getChildren = (catId: number) => {
-    return localCategories.filter((c) => c.parentId === catId);
-  };
-
-  // Tự động tạo slug khi gõ tên
   const handleNameChange = (name: string) => {
-    const slug = name
-      .toLowerCase()
-      .normalize('NFD')
-      .replace(/[\u0300-\u036f]/g, '')
-      .replace(/[đĐ]/g, 'd')
-      .replace(/([^a-z0-9\s-]|)/g, '')
-      .replace(/\s+/g, '-')
-      .replace(/-+/g, '-');
-    
-    setFormData((prev) => ({ ...prev, name, slug }));
+    setFormData((prev) => ({ ...prev, name, slug: toSlug(name) }));
   };
 
   const handleEditClick = (cat: Category) => {
@@ -61,198 +73,146 @@ export default function AdminCategories() {
     });
   };
 
-  const handleAddSubClick = (parentCat: Category) => {
-    setIsAdding(true);
-    setSelectedCatId(null);
-    setAddingParentId(parentCat.id);
-    setFormData({
-      name: '',
-      slug: '',
-      color: parentCat.color || '#C8954A',
-      parentId: parentCat.id,
-    });
-  };
-
   const handleAddRootClick = () => {
-    setIsAdding(true);
     setSelectedCatId(null);
+    setIsAdding(true);
     setAddingParentId(null);
-    setFormData({
-      name: '',
-      slug: '',
-      color: '#C8954A',
-      parentId: 'root',
-    });
+    setFormData({ name: '', slug: '', color: '#C8954A', parentId: 'root' });
   };
 
-  const handleSave = (e: React.FormEvent) => {
+  const handleAddSubClick = (parentCat: Category) => {
+    setSelectedCatId(null);
+    setIsAdding(true);
+    setAddingParentId(parentCat.id);
+    setFormData({ name: '', slug: '', color: '#C8954A', parentId: parentCat.id });
+    // Auto expand parent
+    setExpandedCats((prev) => Array.from(new Set([...prev, parentCat.id])));
+  };
+
+  const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!formData.name) return;
-
-    const parentIdValue = formData.parentId === 'root' || formData.parentId === '' 
-      ? null 
-      : Number(formData.parentId);
-
-    if (isAdding) {
-      // Thêm danh mục mới
-      const newCat: Category = {
-        id: Date.now(), // Tạo ID ngẫu nhiên bằng milisecond
+    setIsSaving(true);
+    try {
+      const parentId = formData.parentId === 'root' ? null : Number(formData.parentId);
+      const payload = {
         name: formData.name,
-        slug: formData.slug || 'danh-muc-moi',
+        slug: formData.slug,
         color: formData.color,
-        parentId: parentIdValue,
+        parentId,
       };
 
-      setLocalCategories((prev) => [...prev, newCat]);
-      alert('Đã thêm danh mục mới thành công!');
-      
-      // Mở rộng cha của danh mục mới để người dùng thấy ngay
-      if (parentIdValue) {
-        setExpandedCats((prev) => prev.includes(parentIdValue) ? prev : [...prev, parentIdValue]);
-      }
-      
-      setIsAdding(false);
-    } else if (selectedCatId !== null) {
-      // Cập nhật danh mục hiện tại
-      // Chống đệ quy vòng tròn (danh mục không được làm cha của chính nó)
-      if (parentIdValue === selectedCatId) {
-        alert('Lỗi: Một danh mục không thể làm cha của chính nó!');
-        return;
-      }
-
-      setLocalCategories((prev) =>
-        prev.map((c) =>
-          c.id === selectedCatId
-            ? { ...c, name: formData.name, slug: formData.slug, color: formData.color, parentId: parentIdValue }
-            : c
-        )
-      );
-      alert('Đã cập nhật danh mục thành công!');
-    }
-  };
-
-  const handleDelete = (id: number) => {
-    if (confirm('Bạn có chắc chắn muốn xóa danh mục này? Tất cả danh mục con của nó cũng sẽ được đưa về cấp cha.')) {
-      // Tìm danh mục cha của danh mục sắp xóa để gán lại cho các con của nó
-      const catToDelete = localCategories.find((c) => c.id === id);
-      const parentOfDeleted = catToDelete ? catToDelete.parentId : null;
-
-      setLocalCategories((prev) =>
-        prev
-          .filter((c) => c.id !== id)
-          .map((c) => (c.parentId === id ? { ...c, parentId: parentOfDeleted } : c))
-      );
-      
-      if (selectedCatId === id) {
+      if (isAdding) {
+        await createCategory.mutateAsync(payload);
+        setIsAdding(false);
+      } else if (selectedCatId !== null) {
+        await updateCategory.mutateAsync({ id: selectedCatId, data: payload });
         setSelectedCatId(null);
       }
-      alert('Đã xóa danh mục thành công!');
+      setFormData({ name: '', slug: '', color: '#C8954A', parentId: 'root' });
+    } catch (err: any) {
+      alert(err.message || 'Lưu thất bại. Vui lòng thử lại.');
+    } finally {
+      setIsSaving(false);
     }
   };
 
-  // Tạo mảng phẳng danh mục được định dạng thụt lề thụt dòng (để render ra thẻ Select)
-  const getFlattenedSelectOptions = (parentId: number | null = null, level: number = 0): Array<{ id: number; name: string }> => {
-    const list = localCategories.filter((c) => c.parentId === parentId);
-    return list.reduce((acc, curr) => {
-      const prefix = '— '.repeat(level);
-      const option = { id: curr.id, name: `${prefix}${curr.name}` };
-      const children = getFlattenedSelectOptions(curr.id, level + 1);
-      return [...acc, option, ...children];
-    }, [] as Array<{ id: number; name: string }>);
+  const handleDelete = async (id: number, name: string) => {
+    if (!confirm(`Xóa danh mục "${name}"? Thao tác này không thể hoàn tác.`)) return;
+    setDeletingId(id);
+    try {
+      await deleteCategory.mutateAsync(id);
+      if (selectedCatId === id) setSelectedCatId(null);
+    } catch {
+      alert('Xóa thất bại. Danh mục có thể đang có sản phẩm.');
+    } finally {
+      setDeletingId(null);
+    }
   };
 
-  const selectOptions = getFlattenedSelectOptions(null, 0);
+  // Get flat list for the parent select dropdown (exclude current editing cat)
+  const selectOptions = flatCategories.filter((c) => c.id !== selectedCatId);
 
-  // Đệ quy để hiển thị cây thư mục Admin không giới hạn cấp
-  const renderAdminCategoryTree = (parentId: number | null = null, level: number = 0) => {
-    const list = localCategories.filter((c) => c.parentId === parentId);
-    if (list.length === 0) return null;
-
+  // Recursive render from tree
+  const renderTree = (cats: Category[], level = 0) => {
     return (
-      <div className={`space-y-1.5 ${level > 0 ? 'pl-6 border-l-2 border-[#E8E0D5]/50 mt-1' : ''}`}>
-        {list.map((cat) => {
-          const children = getChildren(cat.id);
+      <div className={level > 0 ? 'pl-5 border-l border-[#E8E0D5]/50 mt-1 space-y-1' : 'space-y-2'}>
+        {cats.map((cat) => {
+          const children = cat.subcategories || [];
           const hasChildren = children.length > 0;
           const isExpanded = expandedCats.includes(cat.id);
           const isSelected = selectedCatId === cat.id;
 
           return (
-            <div key={cat.id} className="space-y-1">
+            <div key={cat.id}>
               <div
-                className={`flex items-center gap-3 p-3 rounded-lg hover:bg-[#FAF7F2] cursor-pointer group transition-all ${
-                  isSelected ? 'bg-[#C8954A]/10 border-l-4 border-[#C8954A]' : 'bg-white border-l-4 border-transparent'
+                className={`flex items-center gap-2 px-3 py-2.5 rounded-lg cursor-pointer group transition-colors ${
+                  isSelected
+                    ? 'bg-[#C8954A]/10 border border-[#C8954A]/30'
+                    : 'hover:bg-[#FAF7F2] border border-transparent'
                 }`}
-                onClick={() => handleEditClick(cat)}
+                onClick={() => {
+                  handleEditClick(cat);
+                  if (hasChildren) toggleCategory(cat.id);
+                }}
               >
-                <GripVertical className="w-4 h-4 text-[#888888] opacity-50 cursor-grab active:cursor-grabbing" />
-                
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    toggleCategory(cat.id);
-                  }}
-                  className="p-1 cursor-pointer hover:bg-white rounded transition-colors"
-                >
+                {/* Expand/Collapse Icon */}
+                <span className="w-5 flex-shrink-0 text-gray-400">
                   {hasChildren ? (
                     isExpanded ? (
-                      <ChevronDown className="w-4 h-4 text-[#1E3A5F]" />
+                      <ChevronDown className="w-4 h-4" />
                     ) : (
-                      <ChevronRight className="w-4 h-4 text-[#1E3A5F]" />
+                      <ChevronRight className="w-4 h-4" />
                     )
                   ) : (
-                    <Folder className="w-4 h-4 text-gray-300" />
+                    <span className="w-4" />
                   )}
-                </button>
+                </span>
 
+                {/* Color dot */}
                 {cat.color && (
                   <div
-                    className="w-3.5 h-3.5 rounded-full shadow-sm shrink-0"
+                    className="w-3.5 h-3.5 rounded-full shadow-sm flex-shrink-0"
                     style={{ backgroundColor: cat.color }}
                   />
                 )}
 
-                <span className="flex-1 font-semibold text-gray-700">{cat.name}</span>
-
-                <span className="text-xs px-2.5 py-0.5 bg-[#FAF7F2] rounded-full text-gray-500 font-bold border border-gray-100 shrink-0">
+                <span className="flex-1 font-semibold text-gray-700 text-sm">{cat.name}</span>
+                <span className="text-xs px-2 py-0.5 bg-[#FAF7F2] rounded-full text-gray-500 border border-gray-100 flex-shrink-0">
                   {children.length} con
                 </span>
 
-                {/* Các nút hành động nhanh */}
+                {/* Action buttons */}
                 <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                   <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleAddSubClick(cat);
-                    }}
+                    onClick={(e) => { e.stopPropagation(); handleAddSubClick(cat); }}
                     title="Thêm danh mục con"
                     className="p-1 hover:bg-white rounded text-[#C8954A] transition-colors cursor-pointer"
                   >
                     <FolderPlus className="w-4 h-4" />
                   </button>
                   <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleEditClick(cat);
-                    }}
+                    onClick={(e) => { e.stopPropagation(); handleEditClick(cat); }}
                     title="Chỉnh sửa"
                     className="p-1 hover:bg-white rounded text-gray-500 hover:text-blue-500 transition-colors cursor-pointer"
                   >
                     <Edit className="w-4 h-4" />
                   </button>
                   <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleDelete(cat.id);
-                    }}
+                    onClick={(e) => { e.stopPropagation(); handleDelete(cat.id, cat.name); }}
                     title="Xóa danh mục"
-                    className="p-1 hover:bg-red-50 rounded text-red-500 hover:text-red-600 transition-colors cursor-pointer"
+                    disabled={deletingId === cat.id}
+                    className="p-1 hover:bg-red-50 rounded text-red-400 hover:text-red-600 transition-colors cursor-pointer disabled:opacity-40"
                   >
-                    <Trash2 className="w-4 h-4" />
+                    {deletingId === cat.id ? (
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                    ) : (
+                      <Trash2 className="w-4 h-4" />
+                    )}
                   </button>
                 </div>
               </div>
 
-              {hasChildren && isExpanded && renderAdminCategoryTree(cat.id, level + 1)}
+              {hasChildren && isExpanded && renderTree(children, level + 1)}
             </div>
           );
         })}
@@ -266,8 +226,10 @@ export default function AdminCategories() {
       <div className="lg:col-span-2 bg-white rounded-lg shadow-sm p-6 border border-[#E8E0D5]/30">
         <div className="flex items-center justify-between mb-6">
           <div>
-            <h3 className="font-bold text-[#1E3A5F] text-lg">Phân cấp danh mục (Không giới hạn cấp)</h3>
-            <p className="text-xs text-gray-400 font-semibold mt-1">Bấm nút + bên cạnh danh mục để tạo danh mục con trực tiếp</p>
+            <h3 className="font-bold text-[#1E3A5F] text-lg">Phân cấp danh mục</h3>
+            <p className="text-xs text-gray-400 mt-1">
+              Tổng: <strong>{flatCategories.length}</strong> danh mục
+            </p>
           </div>
           <button
             onClick={handleAddRootClick}
@@ -278,44 +240,71 @@ export default function AdminCategories() {
           </button>
         </div>
 
-        <div className="space-y-2 select-none">
-          {renderAdminCategoryTree(null, 0)}
-        </div>
+        {/* Loading */}
+        {isLoading && (
+          <div className="flex flex-col items-center py-12 gap-3">
+            <Loader2 className="w-8 h-8 text-[#C8954A] animate-spin" />
+            <p className="text-sm text-[#888888]">Đang tải danh mục...</p>
+          </div>
+        )}
+
+        {/* Error */}
+        {isError && (
+          <div className="flex items-center gap-3 p-4 bg-red-50 rounded-lg border border-red-200">
+            <AlertCircle className="w-5 h-5 text-red-500 flex-shrink-0" />
+            <p className="text-sm text-red-600">Không thể tải danh mục</p>
+            <button onClick={() => refetch()} className="ml-auto text-xs px-3 py-1 bg-red-500 text-white rounded cursor-pointer">Thử lại</button>
+          </div>
+        )}
+
+        {/* Tree */}
+        {!isLoading && !isError && (
+          <div className="space-y-2 select-none">
+            {renderTree(categoryTree)}
+            {categoryTree.length === 0 && (
+              <div className="text-center py-12 text-gray-400">
+                <Folder className="w-12 h-12 mx-auto mb-3 text-gray-200" />
+                <p className="font-semibold">Chưa có danh mục nào</p>
+                <p className="text-xs mt-1">Nhấn &quot;Thêm thẻ gốc&quot; để bắt đầu</p>
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Editing / Adding Panel (Right Column) */}
       <div className="bg-white rounded-lg shadow-sm p-6 border border-[#E8E0D5]/30 self-start sticky top-24">
         {isAdding || selectedCatId !== null ? (
-          <form onSubmit={handleSave} className="space-y-4 animate-fade-in">
+          <form onSubmit={handleSave} className="space-y-4">
             <h3 className="font-bold text-[#1E3A5F] text-lg border-b border-[#E8E0D5]/50 pb-3">
               {isAdding
                 ? addingParentId
-                  ? `Thêm con của: ${localCategories.find((c) => c.id === addingParentId)?.name}`
+                  ? `Thêm con của: ${flatCategories.find((c) => c.id === addingParentId)?.name}`
                   : 'Thêm danh mục gốc'
-                : 'Chỉnh sửa danh mục'}
+                : `Chỉnh sửa: ${selectedCat?.name}`}
             </h3>
 
             <div>
-              <label className="block text-sm font-semibold mb-2 text-[#1E3A5F]">Tên danh mục</label>
+              <label className="block text-sm font-semibold mb-2 text-[#1E3A5F]">Tên danh mục *</label>
               <input
                 type="text"
                 required
                 value={formData.name}
                 onChange={(e) => handleNameChange(e.target.value)}
-                placeholder="Nhập tên..."
+                placeholder="Nhập tên danh mục..."
                 className="w-full px-4 py-3 rounded-lg border border-[#E8E0D5] focus:border-[#C8954A] focus:ring-2 focus:ring-[#C8954A]/20 outline-none transition-all"
               />
             </div>
 
             <div>
-              <label className="block text-sm font-semibold mb-2 text-[#1E3A5F]">Slug (Đường dẫn tinh gọn)</label>
+              <label className="block text-sm font-semibold mb-2 text-[#1E3A5F]">Slug *</label>
               <input
                 type="text"
                 required
                 value={formData.slug}
-                onChange={(e) => setFormData((prev) => ({ ...prev, slug: e.target.value }))}
+                onChange={(e) => setFormData((p) => ({ ...p, slug: e.target.value }))}
                 placeholder="slug-tinh-gon"
-                className="w-full px-4 py-3 rounded-lg border border-[#E8E0D5] focus:border-[#C8954A] focus:ring-2 focus:ring-[#C8954A]/20 outline-none transition-all font-mono"
+                className="w-full px-4 py-3 rounded-lg border border-[#E8E0D5] focus:border-[#C8954A] focus:ring-2 focus:ring-[#C8954A]/20 outline-none transition-all font-mono text-sm"
               />
             </div>
 
@@ -323,7 +312,7 @@ export default function AdminCategories() {
               <label className="block text-sm font-semibold mb-2 text-[#1E3A5F]">Danh mục cha</label>
               <select
                 value={formData.parentId}
-                onChange={(e) => setFormData((prev) => ({ ...prev, parentId: e.target.value }))}
+                onChange={(e) => setFormData((p) => ({ ...p, parentId: e.target.value }))}
                 className="w-full px-4 py-3 rounded-lg border border-[#E8E0D5] focus:border-[#C8954A] outline-none bg-white font-semibold text-gray-700"
               >
                 <option value="root">Là danh mục chính (Thẻ gốc)</option>
@@ -343,7 +332,7 @@ export default function AdminCategories() {
                     <button
                       key={color}
                       type="button"
-                      onClick={() => setFormData((prev) => ({ ...prev, color }))}
+                      onClick={() => setFormData((p) => ({ ...p, color }))}
                       className={`w-8 h-8 rounded-full cursor-pointer transition-all hover:scale-110 shadow-sm ${
                         formData.color === color ? 'ring-2 ring-offset-2 ring-[#C8954A] scale-105' : ''
                       }`}
@@ -357,16 +346,15 @@ export default function AdminCategories() {
             <div className="pt-4 flex gap-3">
               <button
                 type="submit"
-                className="flex-1 px-4 py-3 bg-[#C8954A] text-white rounded-lg hover:bg-[#B8854A] transition-all font-bold cursor-pointer"
+                disabled={isSaving}
+                className="flex-1 px-4 py-3 bg-[#C8954A] text-white rounded-lg hover:bg-[#B8854A] transition-all font-bold cursor-pointer disabled:opacity-60 flex items-center justify-center gap-2"
               >
-                Lưu lại
+                {isSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
+                {isSaving ? 'Đang lưu...' : 'Lưu lại'}
               </button>
               <button
                 type="button"
-                onClick={() => {
-                  setIsAdding(false);
-                  setSelectedCatId(null);
-                }}
+                onClick={() => { setIsAdding(false); setSelectedCatId(null); }}
                 className="px-4 py-3 text-[#888888] hover:text-[#C8954A] transition-colors cursor-pointer font-bold"
               >
                 Hủy bỏ
@@ -378,7 +366,7 @@ export default function AdminCategories() {
             <Folder className="w-12 h-12 text-gray-300 mx-auto mb-3" />
             <h4 className="font-bold text-[#1E3A5F] text-base mb-1">Bảng điều khiển</h4>
             <p className="text-xs max-w-[200px] mx-auto">
-              Bấm vào bất kỳ danh mục nào để chỉnh sửa hoặc nhấn "Thêm thẻ gốc" để tạo mới.
+              Bấm vào danh mục để chỉnh sửa, hoặc nhấn &quot;Thêm thẻ gốc&quot; để tạo mới.
             </p>
           </div>
         )}

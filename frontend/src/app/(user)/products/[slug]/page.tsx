@@ -3,25 +3,36 @@
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { ChevronRight, Phone, MessageCircle, Package, Ruler, MapPin } from 'lucide-react';
-import { products, companyInfo } from '@/data/mockData';
+import { useProductBySlug, useProducts } from '@/lib/api';
+import { companyInfo } from '@/lib/constants';
 import { useState } from 'react';
 
 export default function ProductDetailPage() {
   const params = useParams();
   const slug = params?.slug as string;
   
-  const product = products.find((p) => p.slug === slug);
+  const { data: product, isLoading: isLoadingProduct } = useProductBySlug(slug);
+  const { data: allProducts = [] } = useProducts();
   const [selectedImage, setSelectedImage] = useState(0);
 
-  if (!product) {
+  if (isLoadingProduct) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-[#FAF7F2]">
-        <p className="text-[#1E3A5F] font-medium">Không tìm thấy sản phẩm</p>
+      <div className="min-h-screen flex flex-col items-center justify-center bg-[#FAF7F2]">
+        <div className="animate-spin rounded-full h-10 w-10 border-t-2 border-b-2 border-[#C8954A]" />
+        <p className="mt-4 text-[#030213] font-medium animate-pulse text-sm">Đang tải chi tiết sản phẩm...</p>
       </div>
     );
   }
 
-  const relatedProducts = products
+  if (!product) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-[#FAF7F2]">
+        <p className="text-[#030213] font-medium">Không tìm thấy sản phẩm</p>
+      </div>
+    );
+  }
+
+  const relatedProducts = allProducts
     .filter((p) => p.categorySlug === product.categorySlug && p.id !== product.id)
     .slice(0, 4);
 

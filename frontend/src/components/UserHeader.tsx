@@ -4,9 +4,25 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { Search, Menu, X, ChevronDown, ChevronRight, Phone, User, Heart, ShoppingCart } from 'lucide-react';
-import { categories } from '@/data/mockData';
+import { useCategories, useSettings } from '@/lib/api';
 
 export function UserHeader() {
+  const { data: categories = [] } = useCategories();
+  const { data: settings } = useSettings();
+
+  const companyName = settings?.name || "BALL & BEE";
+
+  const formatLogo = (name: string) => {
+    if (name.includes('&')) {
+      const parts = name.split('&');
+      return (
+        <>
+          {parts[0]}<span className="text-[#C8954A]">&</span>{parts[1]}
+        </>
+      );
+    }
+    return name;
+  };
   const pathname = usePathname();
   const isProductPage = pathname?.startsWith('/products');
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
@@ -62,7 +78,7 @@ export function UserHeader() {
         {/* Left: Luxury Logo moved to the left */}
         <div className="flex items-center">
           <Link href="/" className="text-xl sm:text-2xl font-bold text-[#1E3A5F] tracking-[0.2em] font-serif uppercase hover:opacity-95 transition-opacity whitespace-nowrap">
-            BALL<span className="text-[#C8954A]">&</span>BEE
+            {formatLogo(companyName)}
           </Link>
         </div>
 

@@ -41,3 +41,6 @@ pnpm-debug.log*
 # Gemini / Antigravity files
 .gemini/
 .agent/
+
+# Sensitive C# configuration (contains DB passwords & API Keys)
+backend/appsettings.json

@@ -1,14 +1,18 @@
 'use client';
 
-import { Suspense, useState, useEffect } from 'react';
-import { useSearchParams, useRouter } from 'next/navigation';
+import { useState, useEffect, Suspense } from 'react';
 import Link from 'next/link';
-import { ChevronDown, ChevronRight, RotateCcw, SlidersHorizontal, Search } from 'lucide-react';
-import { products, categories, Product, Category } from '@/data/mockData';
+import { useSearchParams, useRouter } from 'next/navigation';
+import { Search, SlidersHorizontal, ChevronDown, ChevronRight, RotateCcw } from 'lucide-react';
+import { useCategories, useProducts } from '@/lib/api';
 
 function ProductsContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
+
+  // Gọi APIs lấy dữ liệu trực tiếp qua React Query
+  const { data: categories = [], isLoading: isLoadingCategories } = useCategories();
+  const { data: products = [], isLoading: isLoadingProducts } = useProducts();
 
   // Đọc tham số danh mục từ URL (?category=slug)
   const categoryQuery = searchParams ? searchParams.get('category') : null;

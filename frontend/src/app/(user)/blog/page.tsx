@@ -2,18 +2,33 @@
 
 import Link from 'next/link';
 import { ArrowRight } from 'lucide-react';
-import { blogPosts } from '@/data/mockData';
-import { useState } from 'react';
+import { useBlogPosts } from '@/lib/api';
+import { useState, useMemo } from 'react';
 
 export default function BlogPage() {
+  const { data: blogPosts = [], isLoading } = useBlogPosts();
   const [selectedTopic, setSelectedTopic] = useState<string>('all');
 
-  const topics = [
-    { slug: 'all', name: 'Tất cả' },
-    { slug: 'phong-cach-song', name: 'Phong cách sống' },
-    { slug: 'huong-dan-bay-tri', name: 'Hướng dẫn bày trí' },
-    { slug: 'tin-tuc', name: 'Tin tức' },
-  ];
+  // Build topics list dynamically from real data
+  const topics = useMemo(() => {
+    const topicMap = new Map<string, string>();
+    blogPosts.forEach((p) => {
+      if (p.topicSlug && p.topic) topicMap.set(p.topicSlug, p.topic);
+    });
+    return [
+      { slug: 'all', name: 'Tất cả' },
+      ...Array.from(topicMap.entries()).map(([slug, name]) => ({ slug, name })),
+    ];
+  }, [blogPosts]);
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center bg-[#FAF7F2]">
+        <div className="animate-spin rounded-full h-10 w-10 border-t-2 border-b-2 border-[#C8954A]" />
+        <p className="mt-4 text-[#030213] font-medium animate-pulse text-sm">Đang tải cảm hứng thiết kế...</p>
+      </div>
+    );
+  }
 
   const filteredPosts =
     selectedTopic === 'all' ? blogPosts : blogPosts.filter((p) => p.topicSlug === selectedTopic);
