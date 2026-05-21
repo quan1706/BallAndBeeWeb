@@ -1,9 +1,120 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useRef, useState, useMemo } from 'react';
 import Link from 'next/link';
-import { ArrowRight, Loader2, AlertCircle } from 'lucide-react';
-import { useCategories, useProducts, useBlogPosts, API_BASE_URL } from '@/lib/api';
+import { ArrowRight, Loader2, AlertCircle, ChevronLeft, ChevronRight } from 'lucide-react';
+import { useCategories, useProducts, useBlogPosts, API_BASE_URL, Category, Product } from '@/lib/api';
+
+interface CategoryCardProps {
+  category: Category;
+  products: Product[];
+}
+
+function CategoryCard({ category, products }: CategoryCardProps) {
+  // Lọc sản phẩm thuộc danh mục cha hoặc danh mục con của nó
+  const subcategorySlugs = useMemo(() => {
+    return category.subcategories?.map(sub => sub.slug) || [];
+  }, [category]);
+
+  const categoryProducts = useMemo(() => {
+    return products.filter(
+      p => p.categorySlug === category.slug || subcategorySlugs.includes(p.categorySlug)
+    );
+  }, [products, category, subcategorySlugs]);
+
+  // Danh sách ảnh sản phẩm có sẵn
+  const images = useMemo(() => {
+    const urls = categoryProducts.map(p => p.image).filter(Boolean);
+    return Array.from(new Set(urls));
+  }, [categoryProducts]);
+
+  const [currentImageIndex, setCurrentImageIndex] = useState(0);
+  const [nextImageIndex, setNextImageIndex] = useState<number | null>(null);
+  const [isFading, setIsFading] = useState(false);
+
+  useEffect(() => {
+    if (images.length <= 1) return;
+
+    // Khoảng thời gian ngẫu nhiên từ 4s đến 7s cho mỗi card để tạo cảm giác tự nhiên, sinh động
+    const randomInterval = Math.floor(Math.random() * (7000 - 4000 + 1)) + 4000;
+
+    const timer = setInterval(() => {
+      const nextIndex = (currentImageIndex + 1) % images.length;
+      setNextImageIndex(nextIndex);
+      setIsFading(true);
+
+      // Sau 700ms (thời gian fade-out), đổi ảnh chính và kết thúc fade
+      const fadeTimeout = setTimeout(() => {
+        setCurrentImageIndex(nextIndex);
+        setNextImageIndex(null);
+        setIsFading(false);
+      }, 700);
+
+      return () => clearTimeout(fadeTimeout);
+    }, randomInterval);
+
+    return () => clearInterval(timer);
+  }, [images, currentImageIndex]);
+
+  const primaryColor = category.color || '#C8954A';
+  const hasImages = images.length > 0;
+
+  return (
+    <Link
+      href={`/products?category=${category.slug}`}
+      className="relative group overflow-hidden rounded-xl aspect-[4/3] block snap-start flex-shrink-0 w-full md:w-[calc((100%-5*1.5rem)/6)] shadow-sm hover:shadow-xl transition-all duration-500 hover:-translate-y-1 hover:border-[#C8954A]/40 border border-transparent"
+    >
+      {/* 1. Background layer: Nếu không có ảnh, dùng Gradient màu thương hiệu */}
+      <div 
+        className="absolute inset-0 transition-transform duration-700 ease-out group-hover:scale-105"
+        style={{
+          background: `linear-gradient(135deg, ${primaryColor}15 0%, #030213 100%)`
+        }}
+      />
+
+      {/* 2. Image layers cho slideshow (Cross-Fade) */}
+      {hasImages && (
+        <>
+          {/* Ảnh hiện tại */}
+          <img
+            src={images[currentImageIndex]}
+            alt={category.name}
+            className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-700 ease-in-out transition-transform duration-700 ease-out group-hover:scale-105 ${
+              isFading ? 'opacity-0' : 'opacity-40 group-hover:opacity-50'
+            }`}
+          />
+          {/* Ảnh tiếp theo (sẽ mờ dần hiện lên khi isFading = true) */}
+          {nextImageIndex !== null && (
+            <img
+              src={images[nextImageIndex]}
+              alt={category.name}
+              className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-700 ease-in-out transition-transform duration-700 ease-out group-hover:scale-105 ${
+                isFading ? 'opacity-40 group-hover:opacity-50' : 'opacity-0'
+              }`}
+            />
+          )}
+        </>
+      )}
+
+      {/* 3. Overlay Gradient cao cấp để đảm bảo tính mỹ thuật và tương phản chữ */}
+      <div className="absolute inset-0 bg-gradient-to-t from-[#030213] via-[#030213]/40 to-transparent opacity-90 transition-opacity duration-300 group-hover:opacity-95" />
+
+      {/* 4. Nội dung text */}
+      <div className="absolute bottom-0 left-0 right-0 p-2.5 sm:p-5 z-10">
+        <h3 className="text-white text-[10px] sm:text-sm md:text-base font-semibold tracking-wide group-hover:text-[#C8954A] transition-colors duration-300 line-clamp-1">
+          {category.name}
+        </h3>
+        {/* Subtitle nhỏ hiển thị số lượng sản phẩm để tăng sự chi tiết */}
+        <p className="text-[8px] sm:text-[10px] text-white/60 mt-0.5 sm:mt-1 font-medium transition-colors group-hover:text-[#C8954A]/80">
+          {categoryProducts.length} sản phẩm
+        </p>
+      </div>
+
+      {/* 5. Border viền ánh kim khi hover */}
+      <div className="absolute inset-0 border-2 border-transparent group-hover:border-[#C8954A]/30 rounded-xl transition-all duration-500" />
+    </Link>
+  );
+}
 
 export default function HomePage() {
   const { 
@@ -18,7 +129,7 @@ export default function HomePage() {
     isLoading: isLoadingProducts, 
     isError: isErrorProducts, 
     error: errorProducts 
-  } = useProducts({ featured: true });
+  } = useProducts();
 
   const { 
     data: blogPosts = [], 
@@ -32,15 +143,31 @@ export default function HomePage() {
     console.log("API_BASE_URL hiện tại:", API_BASE_URL);
     console.log("process.env.NEXT_PUBLIC_API_URL:", process.env.NEXT_PUBLIC_API_URL);
     console.log("Categories:", { length: categories.length, isLoadingCategories, isErrorCategories, errorCategories });
-    console.log("Products (Featured):", { length: products.length, isLoadingProducts, isErrorProducts, errorProducts });
+    console.log("Products (All):", { length: products.length, isLoadingProducts, isErrorProducts, errorProducts });
     console.log("BlogPosts:", { length: blogPosts.length, isLoadingBlogs, isErrorBlogs, errorBlogs });
     console.log("=========================================");
   }, [categories, products, blogPosts, isLoadingCategories, isLoadingProducts, isLoadingBlogs, isErrorCategories, isErrorProducts, isErrorBlogs, errorCategories, errorProducts, errorBlogs]);
 
-  const featuredProducts = products.slice(0, 4);
+  const featuredProducts = useMemo(() => {
+    return products.filter((p) => p.featured).slice(0, 4);
+  }, [products]);
+
   const featuredBlogs = blogPosts.filter((b) => b.featured).slice(0, 3);
 
   const isAnyError = isErrorCategories || isErrorProducts || isErrorBlogs;
+
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
+
+  const handleScroll = (direction: 'left' | 'right') => {
+    const container = scrollContainerRef.current;
+    if (!container) return;
+
+    const scrollAmount = container.clientWidth * 0.8;
+    container.scrollBy({
+      left: direction === 'left' ? -scrollAmount : scrollAmount,
+      behavior: 'smooth',
+    });
+  };
 
   return (
     <div>
@@ -70,34 +197,34 @@ export default function HomePage() {
 
       {/* Hero Section */}
       <section
-        className="relative h-[90vh] bg-cover bg-center flex items-center"
+        className="relative h-[90vh] bg-cover bg-center flex items-center overflow-hidden"
         style={{
           backgroundImage:
             'linear-gradient(rgba(0, 0, 0, 0.4), rgba(0, 0, 0, 0.4)), url(https://images.unsplash.com/photo-1616486338812-3dadae4b4ace?w=1600)',
         }}
       >
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 w-full">
-          <div className="max-w-xl bg-[#030213]/40 backdrop-blur-md p-8 rounded-xl border border-white/10">
-            <p className="text-[#C8954A] text-xs uppercase tracking-widest mb-3 font-semibold">
+          <div className="max-w-xl bg-[#030213]/40 backdrop-blur-md p-6 sm:p-8 rounded-xl border border-white/10">
+            <p className="text-[#C8954A] text-[10px] sm:text-xs uppercase tracking-widest mb-2 sm:mb-3 font-semibold">
               Phong cách sống Việt
             </p>
-            <h1 className="heading text-5xl text-white mb-4 leading-tight font-extrabold">
+            <h1 className="heading text-2xl xs:text-3xl sm:text-4xl md:text-5xl text-white mb-3 sm:mb-4 leading-tight font-extrabold">
               Không gian sống – Tinh tế từng chi tiết
             </h1>
-            <p className="text-white/80 mb-6 leading-relaxed">
+            <p className="text-white/80 text-xs sm:text-sm md:text-base mb-5 sm:mb-6 leading-relaxed">
               Khám phá những sản phẩm nội thất và trang trí độc đáo, mang đậm phong cách Việt hiện đại,
               tạo nên không gian sống ấm cúng và đầy cảm hứng.
             </p>
-            <div className="flex gap-4">
+            <div className="flex flex-col xs:flex-row gap-3 sm:gap-4">
               <Link
                 href="/products"
-                className="px-6 py-3 bg-[#C8954A] text-white rounded-lg hover:bg-[#B8854A] transition-all hover:scale-105 active:scale-95 shadow-lg shadow-black/20"
+                className="px-4 sm:px-6 py-2.5 sm:py-3 bg-[#C8954A] text-white rounded-lg hover:bg-[#B8854A] transition-all hover:scale-105 active:scale-95 shadow-lg shadow-black/20 text-xs sm:text-sm font-semibold text-center"
               >
                 Khám phá sản phẩm
               </Link>
               <Link
                 href="/contact"
-                className="px-6 py-3 border-2 border-white text-white rounded-lg hover:bg-white hover:text-[#030213] transition-all hover:scale-105 active:scale-95"
+                className="px-4 sm:px-6 py-2.5 sm:py-3 border-2 border-white text-white rounded-lg hover:bg-white hover:text-[#030213] transition-all hover:scale-105 active:scale-95 text-xs sm:text-sm font-semibold text-center"
               >
                 Về chúng tôi
               </Link>
@@ -107,14 +234,34 @@ export default function HomePage() {
       </section>
 
       {/* Categories */}
-      <section className="py-16 bg-white">
+      <section className="py-16 bg-white overflow-hidden">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <h2 className="heading text-3xl text-center text-[#030213] mb-12 font-bold">Danh mục sản phẩm</h2>
-          
+          <div className="flex items-center justify-between mb-6 sm:mb-10">
+            <h2 className="heading text-xl sm:text-3xl text-[#030213] font-bold">Danh mục sản phẩm</h2>
+            {!isLoadingCategories && !isErrorCategories && categories.length > 0 && (
+              <div className="hidden md:flex gap-2">
+                <button
+                  onClick={() => handleScroll('left')}
+                  className="w-10 h-10 rounded-full border border-gray-200 hover:border-[#C8954A] flex items-center justify-center text-gray-500 hover:text-[#C8954A] hover:bg-[#FAF7F2] active:scale-95 transition-all cursor-pointer shadow-sm animate-fade-in"
+                  title="Xem danh mục trước"
+                >
+                  <ChevronLeft className="w-5 h-5" />
+                </button>
+                <button
+                  onClick={() => handleScroll('right')}
+                  className="w-10 h-10 rounded-full border border-gray-200 hover:border-[#C8954A] flex items-center justify-center text-gray-500 hover:text-[#C8954A] hover:bg-[#FAF7F2] active:scale-95 transition-all cursor-pointer shadow-sm animate-fade-in"
+                  title="Xem danh mục tiếp theo"
+                >
+                  <ChevronRight className="w-5 h-5" />
+                </button>
+              </div>
+            )}
+          </div>
+
           {isLoadingCategories ? (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-              {[1, 2, 3].map((i) => (
-                <div key={i} className="animate-pulse bg-gray-100 rounded-xl aspect-[4/3]" />
+            <div className="grid grid-cols-3 gap-3 md:flex md:overflow-hidden md:gap-6">
+              {[1, 2, 3, 4, 5, 6].map((i) => (
+                <div key={i} className="animate-pulse bg-gray-100 rounded-xl aspect-[4/3] w-full md:w-[calc((100%-5*1.5rem)/6)] flex-shrink-0" />
               ))}
             </div>
           ) : isErrorCategories ? (
@@ -127,24 +274,30 @@ export default function HomePage() {
               <p className="text-sm">Chưa có danh mục sản phẩm nào.</p>
             </div>
           ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-              {categories.filter(c => c.parentId === null).map((category) => (
-                <Link
-                  key={category.id}
-                  href={`/products?category=${category.slug}`}
-                  className="relative group overflow-hidden rounded-xl aspect-[4/3] bg-cover bg-center block"
-                  style={{
-                    backgroundImage: `linear-gradient(to top, rgba(3, 2, 19, 0.8), transparent), url(https://images.unsplash.com/photo-1556912167-f556f1f39fdf?w=600)`,
-                  }}
-                >
-                  <div className="absolute inset-0 group-hover:scale-105 transition-transform duration-500 bg-[#030213]/10" />
-                  <div className="absolute bottom-0 left-0 right-0 p-6 z-10">
-                    <h3 className="text-white text-xl font-semibold tracking-wide group-hover:text-[#C8954A] transition-colors">{category.name}</h3>
-                  </div>
-                  <div className="absolute inset-0 border-2 border-transparent group-hover:border-[#C8954A] rounded-xl transition-colors duration-300" />
-                </Link>
-              ))}
-            </div>
+            <>
+              {/* CSS ẩn thanh cuộn scrollbar trên các trình duyệt */}
+              <style>{`
+                .no-scrollbar::-webkit-scrollbar {
+                  display: none;
+                }
+              `}</style>
+              <div
+                ref={scrollContainerRef}
+                className="grid grid-cols-3 gap-3 md:flex md:overflow-x-auto md:gap-6 pb-2 pt-1 md:pb-6 md:pt-2 md:scroll-smooth md:snap-x md:snap-mandatory no-scrollbar select-none"
+                style={{
+                  scrollbarWidth: 'none',
+                  msOverflowStyle: 'none',
+                }}
+              >
+                {categories.filter(c => c.parentId === null).map((category) => (
+                  <CategoryCard
+                    key={category.id}
+                    category={category}
+                    products={products}
+                  />
+                ))}
+              </div>
+            </>
           )}
         </div>
       </section>

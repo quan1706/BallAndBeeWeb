@@ -11,6 +11,7 @@ export interface Category {
   slug: string;
   color?: string;
   parentId: any; // Sử dụng any
+  position?: number; // Thêm trường position lưu thứ tự sắp xếp
   subcategories?: Category[];
 }
 
@@ -115,7 +116,8 @@ export async function fetchCategories(): Promise<Category[]> {
   const { data, error } = await supabase
     .from('categories')
     .select('*')
-    .order('created_at', { ascending: true });
+    .order('position', { ascending: true }) // Ưu tiên sắp xếp theo vị trí position kéo thả
+    .order('created_at', { ascending: true }); // Fallback theo thời gian tạo
 
   if (error) throw new Error(error.message);
 
@@ -129,6 +131,7 @@ export async function fetchCategories(): Promise<Category[]> {
         slug: c.slug,
         color: c.color || undefined,
         parentId: c.parent_id,
+        position: c.position || 0,
         subcategories: buildTree(cats, c.id)
       }));
   };
@@ -140,7 +143,8 @@ export async function fetchCategoriesFlat(): Promise<Category[]> {
   const { data, error } = await supabase
     .from('categories')
     .select('*')
-    .order('created_at', { ascending: true });
+    .order('position', { ascending: true }) // Ưu tiên sắp xếp theo position
+    .order('created_at', { ascending: true }); // Fallback theo thời gian tạo
 
   if (error) throw new Error(error.message);
 
@@ -149,7 +153,8 @@ export async function fetchCategoriesFlat(): Promise<Category[]> {
     name: c.name,
     slug: c.slug,
     color: c.color || undefined,
-    parentId: c.parent_id
+    parentId: c.parent_id,
+    position: c.position || 0
   }));
 }
 
@@ -158,6 +163,7 @@ export async function createCategory(data: {
   slug: string;
   color?: string;
   parentId?: any;
+  position?: number;
 }): Promise<Category> {
   const { data: cat, error } = await supabase
     .from('categories')
@@ -165,7 +171,8 @@ export async function createCategory(data: {
       name: data.name,
       slug: data.slug,
       color: data.color || null,
-      parent_id: data.parentId || null
+      parent_id: data.parentId || null,
+      position: data.position !== undefined ? data.position : 0
     }])
     .select()
     .single();
@@ -177,22 +184,25 @@ export async function createCategory(data: {
     name: cat.name,
     slug: cat.slug,
     color: cat.color || undefined,
-    parentId: cat.parent_id
+    parentId: cat.parent_id,
+    position: cat.position || 0
   };
 }
 
 export async function updateCategory(
   id: any,
-  data: { name: string; slug: string; color?: string; parentId?: any }
+  data: { name?: string; slug?: string; color?: string; parentId?: any; position?: number }
 ): Promise<Category> {
+  const updateData: any = {};
+  if (data.name !== undefined) updateData.name = data.name;
+  if (data.slug !== undefined) updateData.slug = data.slug;
+  if (data.color !== undefined) updateData.color = data.color || null;
+  if (data.parentId !== undefined) updateData.parent_id = data.parentId || null;
+  if (data.position !== undefined) updateData.position = data.position;
+
   const { data: cat, error } = await supabase
     .from('categories')
-    .update({
-      name: data.name,
-      slug: data.slug,
-      color: data.color || null,
-      parent_id: data.parentId || null
-    })
+    .update(updateData)
     .eq('id', id)
     .select()
     .single();
@@ -204,7 +214,8 @@ export async function updateCategory(
     name: cat.name,
     slug: cat.slug,
     color: cat.color || undefined,
-    parentId: cat.parent_id
+    parentId: cat.parent_id,
+    position: cat.position || 0
   };
 }
 

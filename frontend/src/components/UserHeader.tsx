@@ -96,10 +96,20 @@ export function UserHeader() {
       }`}
     >
       {/* TIER 1: UPPER HEADER */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-2.5 flex items-center justify-between gap-8">
-        {/* Left: Luxury Logo moved to the left */}
-        <div className="flex items-center">
-          <Link href="/" className="text-xl sm:text-2xl font-bold text-[#1E3A5F] tracking-[0.2em] font-serif uppercase hover:opacity-95 transition-opacity whitespace-nowrap">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-2.5 flex items-center justify-between gap-4 sm:gap-8">
+        {/* Mobile-only Left: Hamburger Menu */}
+        <div className="flex md:hidden w-1/3 justify-start">
+          <button
+            onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+            className="p-1.5 hover:bg-[#FAF7F2] rounded-lg transition-colors text-[#1E3A5F] cursor-pointer"
+          >
+            {isMobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
+          </button>
+        </div>
+
+        {/* Center/Left Logo */}
+        <div className="flex w-1/3 md:w-auto justify-center md:justify-start">
+          <Link href="/" className="text-xs sm:text-base md:text-xl lg:text-2xl font-bold text-[#1E3A5F] tracking-[0.05em] sm:tracking-[0.2em] font-serif uppercase hover:opacity-95 transition-opacity whitespace-nowrap">
             {formatLogo(companyName)}
           </Link>
         </div>
@@ -118,14 +128,14 @@ export function UserHeader() {
           />
         </form>
 
-        {/* Right: Elegant Actions (Icons with text underneath - Shopping Cart removed) */}
-        <div className="flex items-center gap-6">
-          <Link href="/contact" className="flex flex-col items-center gap-1 group text-gray-500 hover:text-[#C8954A] transition-all cursor-pointer">
+        {/* Right: Elegant Actions (Icons with text underneath) */}
+        <div className="flex w-1/3 md:w-auto items-center justify-end gap-3 sm:gap-6">
+          <Link href="/contact" className="hidden sm:flex flex-col items-center gap-1 group text-gray-500 hover:text-[#C8954A] transition-all cursor-pointer">
             <Phone className="w-5 h-5 group-hover:scale-105 transition-transform" />
             <span className="text-[8px] sm:text-[9px] font-bold uppercase tracking-wider">Liên hệ</span>
           </Link>
           
-          <Link href="/admin" className="flex flex-col items-center gap-1 group text-gray-500 hover:text-[#C8954A] transition-all cursor-pointer">
+          <Link href="/admin" className="hidden sm:flex flex-col items-center gap-1 group text-gray-500 hover:text-[#C8954A] transition-all cursor-pointer">
             <User className="w-5 h-5 group-hover:scale-105 transition-transform" />
             <span className="text-[8px] sm:text-[9px] font-bold uppercase tracking-wider">Tài khoản</span>
           </Link>
@@ -137,17 +147,62 @@ export function UserHeader() {
                 1
               </span>
             </div>
-            <span className="text-[8px] sm:text-[9px] font-bold uppercase tracking-wider">Yêu thích</span>
+            <span className="hidden sm:block text-[8px] sm:text-[9px] font-bold uppercase tracking-wider">Yêu thích</span>
+          </Link>
+        </div>
+      </div>
+
+      {/* Mobile Navigation Row Under Logo */}
+      <div className="md:hidden border-t border-[#E8E0D5]/35 bg-white">
+        <nav className="flex items-center justify-around h-9 px-4">
+          <Link
+            href="/"
+            className={`text-[10px] font-bold uppercase tracking-widest py-2 transition-colors relative ${
+              pathname === '/' ? 'text-[#C8954A]' : 'text-[#1E3A5F]'
+            }`}
+          >
+            Trang chủ
+            {pathname === '/' && (
+              <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-[#C8954A]" />
+            )}
           </Link>
 
-          {/* Hamburger Menu on Mobile */}
-          <button
-            onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-            className="md:hidden p-1.5 hover:bg-[#FAF7F2] rounded-lg transition-colors text-[#1E3A5F] cursor-pointer"
+          <Link
+            href="/products"
+            className={`text-[10px] font-bold uppercase tracking-widest py-2 transition-colors relative ${
+              isProductPage ? 'text-[#C8954A]' : 'text-[#1E3A5F]'
+            }`}
           >
-            {isMobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
-          </button>
-        </div>
+            Sản phẩm
+            {isProductPage && (
+              <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-[#C8954A]" />
+            )}
+          </Link>
+
+          <Link
+            href="/blog"
+            className={`text-[10px] font-bold uppercase tracking-widest py-2 transition-colors relative ${
+              pathname?.startsWith('/blog') ? 'text-[#C8954A]' : 'text-[#1E3A5F]'
+            }`}
+          >
+            Blog
+            {pathname?.startsWith('/blog') && (
+              <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-[#C8954A]" />
+            )}
+          </Link>
+
+          <Link
+            href="/contact"
+            className={`text-[10px] font-bold uppercase tracking-widest py-2 transition-colors relative ${
+              pathname === '/contact' ? 'text-[#C8954A]' : 'text-[#1E3A5F]'
+            }`}
+          >
+            Liên hệ
+            {pathname === '/contact' && (
+              <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-[#C8954A]" />
+            )}
+          </Link>
+        </nav>
       </div>
 
       {/* TIER 2: LOWER NAVIGATION BAR (Horizontal categories & hover mega menu) */}
@@ -361,87 +416,118 @@ export function UserHeader() {
         </div>
       </div>
 
-      {/* Mobile Menu Open State */}
+      {/* Mobile Menu Open State (Left Navigation Drawer) */}
       {isMobileMenuOpen && (
-        <div className="md:hidden border-t border-[#E8E0D5] bg-white p-4 space-y-4 animate-fade-in shadow-inner max-h-[85vh] overflow-y-auto">
-          {/* Mobile Search */}
-          <form onSubmit={handleSearch} className="relative">
-            <button type="submit" className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-[#C8954A] transition-colors cursor-pointer">
-              <Search className="w-4 h-4" />
-            </button>
-            <input
-              type="text"
-              placeholder="Tìm kiếm..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 bg-gray-50 border border-gray-200 rounded-full text-xs outline-none focus:bg-white transition-all font-semibold"
-            />
-          </form>
-
-          <div className="space-y-1">
-            <Link
-              href="/"
-              onClick={() => setIsMobileMenuOpen(false)}
-              className="block px-3 py-2 rounded-lg text-xs font-bold uppercase tracking-wider text-[#1E3A5F] hover:bg-[#FAF7F2]"
-            >
-              Trang chủ
-            </Link>
-            
-            <Link
-              href="/products?sort=newest"
-              onClick={() => setIsMobileMenuOpen(false)}
-              className="block px-3 py-2 rounded-lg text-xs font-bold uppercase tracking-wider text-[#C8954A] hover:bg-[#FAF7F2]"
-            >
-              MỚI
-            </Link>
-
-            {/* Mobile Categories Accordion-style */}
-            <div className="border-t border-b border-gray-100 py-2 my-2 space-y-2">
-              <p className="px-3 text-[10px] font-bold text-gray-400 uppercase tracking-widest">Danh mục sản phẩm</p>
-              {rootCategories.map((cat) => {
-                const subs = getSubcategories(cat.id);
-                return (
-                  <div key={cat.id} className="pl-3 space-y-1">
-                    <Link
-                      href={`/products?category=${cat.slug}`}
-                      onClick={() => setIsMobileMenuOpen(false)}
-                      className="block py-1 text-xs font-bold text-[#1E3A5F] hover:text-[#C8954A]"
-                    >
-                      {cat.name}
-                    </Link>
-                    {subs.map((sub) => (
-                      <Link
-                        key={sub.id}
-                        href={`/products?category=${sub.slug}`}
-                        onClick={() => setIsMobileMenuOpen(false)}
-                        className="block pl-3 py-0.5 text-[11px] text-gray-500 hover:text-[#C8954A] font-semibold"
-                      >
-                        — {sub.name}
-                      </Link>
-                    ))}
-                  </div>
-                );
-              })}
-            </div>
-
-            <Link
-              href="/blog"
-              onClick={() => setIsMobileMenuOpen(false)}
-              className="block px-3 py-2 rounded-lg text-xs font-bold uppercase tracking-wider text-[#1E3A5F] hover:bg-[#FAF7F2]"
-            >
-              Blog
-            </Link>
-            
-            <Link
-              href="/contact"
-              onClick={() => setIsMobileMenuOpen(false)}
-              className="block px-3 py-2 rounded-lg text-xs font-bold uppercase tracking-wider text-[#1E3A5F] hover:bg-[#FAF7F2]"
-            >
-              Liên hệ
-            </Link>
-          </div>
-        </div>
+        <div 
+          className="fixed inset-0 bg-[#030213]/40 backdrop-blur-[2px] z-50 transition-opacity md:hidden"
+          onClick={() => setIsMobileMenuOpen(false)}
+        />
       )}
+
+      <div
+        className={`fixed top-0 left-0 h-full w-[280px] sm:w-[320px] max-w-[80vw] bg-white z-55 shadow-2xl p-6 overflow-y-auto transition-transform duration-300 ease-in-out md:hidden flex flex-col space-y-5
+          ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'}
+        `}
+      >
+        {/* Header của Mobile Navigation Drawer */}
+        <div className="flex items-center justify-between pb-4 border-b border-[#E8E0D5]/50">
+          <span className="text-xs font-bold text-[#1E3A5F] tracking-wide font-serif uppercase">
+            {formatLogo(companyName)}
+          </span>
+          <button
+            onClick={() => setIsMobileMenuOpen(false)}
+            className="p-1 hover:bg-[#FAF7F2] rounded-lg text-[#1E3A5F] cursor-pointer"
+          >
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+
+        {/* Mobile Search */}
+        <form onSubmit={handleSearch} className="relative">
+          <button type="submit" className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-[#C8954A] transition-colors cursor-pointer">
+            <Search className="w-4 h-4" />
+          </button>
+          <input
+            type="text"
+            placeholder="Tìm kiếm sản phẩm..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="w-full pl-10 pr-4 py-2 bg-gray-50 border border-gray-200 rounded-full text-xs outline-none focus:bg-white focus:border-[#C8954A] transition-all font-semibold text-gray-700"
+          />
+        </form>
+
+        {/* Menu Links */}
+        <div className="flex-1 space-y-1 overflow-y-auto no-scrollbar">
+          <Link
+            href="/"
+            onClick={() => setIsMobileMenuOpen(false)}
+            className="block px-3.5 py-2.5 rounded-xl text-xs font-bold uppercase tracking-wider text-[#1E3A5F] hover:bg-[#FAF7F2] hover:text-[#C8954A] transition-all"
+          >
+            Trang chủ
+          </Link>
+          
+          <Link
+            href="/products?sort=newest"
+            onClick={() => setIsMobileMenuOpen(false)}
+            className="block px-3.5 py-2.5 rounded-xl text-xs font-bold uppercase tracking-wider text-[#C8954A] hover:bg-[#FAF7F2] hover:opacity-90 transition-all"
+          >
+            MỚI
+          </Link>
+
+          {/* Mobile Categories Accordion-style */}
+          <div className="border-t border-b border-[#E8E0D5]/20 py-3 my-2 space-y-2">
+            <p className="px-3.5 text-[9px] font-bold text-gray-400 uppercase tracking-widest">Danh mục sản phẩm</p>
+            {rootCategories.map((cat) => {
+              const subs = getSubcategories(cat.id);
+              return (
+                <div key={cat.id} className="pl-3.5 space-y-1">
+                  <Link
+                    href={`/products?category=${cat.slug}`}
+                    onClick={() => setIsMobileMenuOpen(false)}
+                    className="block py-1.5 text-xs font-bold text-[#1E3A5F] hover:text-[#C8954A] transition-all"
+                  >
+                    {cat.name}
+                  </Link>
+                  {subs.map((sub) => (
+                    <Link
+                      key={sub.id}
+                      href={`/products?category=${sub.slug}`}
+                      onClick={() => setIsMobileMenuOpen(false)}
+                      className="block pl-3.5 py-1 text-[11px] text-gray-500 hover:text-[#C8954A] transition-all font-semibold"
+                    >
+                      — {sub.name}
+                    </Link>
+                  ))}
+                </div>
+              );
+            })}
+          </div>
+
+          <Link
+            href="/blog"
+            onClick={() => setIsMobileMenuOpen(false)}
+            className="block px-3.5 py-2.5 rounded-xl text-xs font-bold uppercase tracking-wider text-[#1E3A5F] hover:bg-[#FAF7F2] hover:text-[#C8954A] transition-all"
+          >
+            Blog
+          </Link>
+          
+          <Link
+            href="/contact"
+            onClick={() => setIsMobileMenuOpen(false)}
+            className="block px-3.5 py-2.5 rounded-xl text-xs font-bold uppercase tracking-wider text-[#1E3A5F] hover:bg-[#FAF7F2] hover:text-[#C8954A] transition-all"
+          >
+            Liên hệ
+          </Link>
+          
+          <Link
+            href="/admin"
+            onClick={() => setIsMobileMenuOpen(false)}
+            className="block px-3.5 py-2.5 rounded-xl text-xs font-bold uppercase tracking-wider text-[#1E3A5F] hover:bg-[#FAF7F2] hover:text-[#C8954A] transition-all border-t border-[#E8E0D5]/20 pt-3 mt-2"
+          >
+            Quản trị / Tài khoản
+          </Link>
+        </div>
+      </div>
     </header>
   );
 }
