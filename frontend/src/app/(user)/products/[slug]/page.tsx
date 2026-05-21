@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { ChevronRight, Phone, MessageCircle, Package, Ruler, MapPin } from 'lucide-react';
-import { useProductBySlug, useProducts } from '@/lib/api';
+import { useProductBySlug, useProducts, useSettings } from '@/lib/api';
 import { companyInfo } from '@/lib/constants';
 import { useState } from 'react';
 
@@ -13,6 +13,7 @@ export default function ProductDetailPage() {
   
   const { data: product, isLoading: isLoadingProduct } = useProductBySlug(slug);
   const { data: allProducts = [] } = useProducts();
+  const { data: settings } = useSettings();
   const [selectedImage, setSelectedImage] = useState(0);
 
   if (isLoadingProduct) {
@@ -126,14 +127,14 @@ export default function ProductDetailPage() {
               <h3 className="font-semibold text-[#1E3A5F] mb-2">Quan tâm sản phẩm này?</h3>
               <p className="text-sm text-[#888888] mb-4">Liên hệ để được tư vấn và đặt hàng</p>
               <a
-                href={`tel:${companyInfo.phone}`}
+                href={`tel:${settings?.phone || companyInfo.phone}`}
                 className="flex items-center justify-center gap-2 w-full bg-[#C8954A] text-white py-3 rounded-lg hover:bg-[#B8854A] transition-colors mb-3 font-medium text-center"
               >
                 <Phone className="w-5 h-5" />
-                Gọi ngay: {companyInfo.phone}
+                Gọi ngay: {settings?.phone || companyInfo.phone}
               </a>
               <a
-                href={`https://zalo.me/${companyInfo.zalo}`}
+                href={`https://zalo.me/${settings?.zalo || companyInfo.zalo}`}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="flex items-center justify-center gap-2 w-full border-2 border-[#C8954A] text-[#C8954A] py-3 rounded-lg hover:bg-[#C8954A] hover:text-white transition-colors font-medium text-center"
