@@ -48,6 +48,7 @@ export function UserHeader() {
   const isProductPage = pathname?.startsWith('/products');
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [hoveredCat, setHoveredCat] = useState<number | null>(null);
+  const [isAllProductsHovered, setIsAllProductsHovered] = useState(false);
 
   // Logic Smart Sticky Header (Ẩn khi cuộn xuống, hiện khi cuộn lên)
   const [showHeader, setShowHeader] = useState(true);
@@ -152,114 +153,211 @@ export function UserHeader() {
       {/* TIER 2: LOWER NAVIGATION BAR (Horizontal categories & hover mega menu) */}
       <div className="hidden md:block border-t border-[#E8E0D5]/50 bg-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <nav 
-            className="flex items-center justify-center gap-6 lg:gap-8 h-11 relative"
-            onMouseLeave={() => setHoveredCat(null)}
-          >
-            {/* 1. Trang chủ */}
-            <div className="group relative h-full flex items-center">
-              <Link
-                href="/"
-                className={`text-[11px] lg:text-xs font-bold uppercase tracking-widest py-3 relative transition-colors ${
-                  pathname === '/' ? 'text-[#C8954A]' : 'text-[#1E3A5F] hover:text-[#C8954A]'
-                }`}
-              >
-                Trang chủ
-                <span className={`absolute bottom-0 left-0 right-0 h-0.5 bg-[#C8954A] transition-transform origin-center duration-300 ${
-                  pathname === '/' ? 'scale-x-100' : 'scale-x-0 group-hover:scale-x-100'
-                }`} />
-              </Link>
-            </div>
-
-            {/* 2. MỚI */}
-            <div className="group relative h-full flex items-center">
-              <Link
-                href="/products?sort=newest"
-                className="text-[11px] lg:text-xs font-bold uppercase tracking-widest text-[#C8954A] hover:opacity-90 transition-colors py-3 relative"
-              >
-                MỚI
-                <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-[#C8954A] scale-x-0 group-hover:scale-x-100 transition-transform origin-center duration-300" />
-              </Link>
-            </div>
-
-            {/* Các danh mục Root động */}
-            {rootCategories.map((cat) => {
-              const subCats = getSubcategories(cat.id);
-              const hasSub = subCats.length > 0;
-
-              return (
-                <div
-                  key={cat.id}
-                  className="group h-full flex items-center"
-                  onMouseEnter={() => {
-                    if (hasSub) setHoveredCat(cat.id);
-                    else setHoveredCat(null);
-                  }}
+          {pathname === '/' ? (
+            /* MENU TỐI GIẢN CHO TRANG CHỦ */
+            <nav 
+              className="flex items-center justify-center gap-6 lg:gap-10 h-11 relative"
+              onMouseLeave={() => setIsAllProductsHovered(false)}
+            >
+              {/* 1. Trang chủ */}
+              <div className="group relative h-full flex items-center">
+                <Link
+                  href="/"
+                  className="text-[11px] lg:text-xs font-bold uppercase tracking-widest py-3 text-[#C8954A] relative transition-colors"
                 >
-                  <Link
-                    href={`/products?category=${cat.slug}`}
-                    className={`text-[11px] lg:text-xs font-bold uppercase tracking-widest py-3 relative transition-colors cursor-pointer ${
-                      hoveredCat === cat.id ? 'text-[#C8954A]' : 'text-[#1E3A5F] hover:text-[#C8954A]'
-                    }`}
-                  >
-                    {cat.name}
-                    <span className={`absolute bottom-0 left-0 right-0 h-0.5 bg-[#C8954A] transition-transform origin-center duration-300 ${
-                      hoveredCat === cat.id ? 'scale-x-100' : 'scale-x-0 group-hover:scale-x-100'
-                    }`} />
-                  </Link>
+                  Trang chủ
+                  <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-[#C8954A] scale-x-100" />
+                </Link>
+              </div>
 
-                  {/* Mega Menu panel của từng danh mục */}
-                  {hasSub && hoveredCat === cat.id && (
-                    <div className="absolute top-11 left-0 right-0 w-full bg-white border-b border-[#E8E0D5]/60 shadow-2xl py-8 z-50 animate-fade-in">
-                      <div className="max-w-7xl mx-auto px-8 grid grid-cols-4 gap-8">
-                        {subCats.map((sub) => {
-                          const grandChildren = getGrandchildren(sub.id);
-                          return (
-                            <div key={sub.id} className="space-y-3">
-                              <Link
-                                href={`/products?category=${sub.slug}`}
-                                className="text-xs font-bold text-[#1E3A5F] uppercase tracking-wider hover:text-[#C8954A] transition-colors block border-b border-[#E8E0D5]/30 pb-2 font-serif"
-                              >
-                                {sub.name}
-                              </Link>
-                              {grandChildren.length > 0 && (
-                                <div className="space-y-1.5 pl-1">
-                                  {grandChildren.map((grand) => (
-                                    <Link
-                                      key={grand.id}
-                                      href={`/products?category=${grand.slug}`}
-                                      className="block text-[11px] text-[#666666] hover:text-[#C8954A] hover:pl-1 transition-all font-semibold"
-                                    >
-                                      {grand.name}
-                                    </Link>
-                                  ))}
-                                </div>
-                              )}
-                            </div>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  )}
-                </div>
-              );
-            })}
-
-            {/* 3. Blog */}
-            <div className="group relative h-full flex items-center">
-              <Link
-                href="/blog"
-                className={`text-[11px] lg:text-xs font-bold uppercase tracking-widest py-3 relative transition-colors ${
-                  pathname?.startsWith('/blog') ? 'text-[#C8954A]' : 'text-[#1E3A5F] hover:text-[#C8954A]'
-                }`}
+              {/* 2. Sản phẩm (Hover để hiện toàn bộ phân loại) */}
+              <div 
+                className="group h-full flex items-center"
+                onMouseEnter={() => setIsAllProductsHovered(true)}
               >
-                Blog
-                <span className={`absolute bottom-0 left-0 right-0 h-0.5 bg-[#C8954A] transition-transform origin-center duration-300 ${
-                  pathname?.startsWith('/blog') ? 'scale-x-100' : 'scale-x-0 group-hover:scale-x-100'
-                }`} />
-              </Link>
-            </div>
-          </nav>
+                <Link
+                  href="/products"
+                  className={`text-[11px] lg:text-xs font-bold uppercase tracking-widest py-3 relative transition-colors flex items-center gap-1 cursor-pointer ${
+                    isAllProductsHovered ? 'text-[#C8954A]' : 'text-[#1E3A5F] hover:text-[#C8954A]'
+                  }`}
+                >
+                  Sản phẩm
+                  <ChevronDown className={`w-3.5 h-3.5 transition-transform duration-300 ${isAllProductsHovered ? 'rotate-180 text-[#C8954A]' : 'text-[#1E3A5F]'}`} />
+                  <span className={`absolute bottom-0 left-0 right-0 h-0.5 bg-[#C8954A] transition-transform origin-center duration-300 ${
+                    isAllProductsHovered ? 'scale-x-100' : 'scale-x-0'
+                  }`} />
+                </Link>
+
+                {/* Mega Menu chứa toàn bộ danh mục phân loại */}
+                {isAllProductsHovered && (
+                  <div className="absolute top-11 left-0 right-0 w-full bg-white border-b border-[#E8E0D5]/60 shadow-2xl py-8 z-50 animate-fade-in">
+                    <div className="max-w-7xl mx-auto px-8 grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-6 text-left">
+                      {rootCategories.map((cat) => {
+                        const subCats = getSubcategories(cat.id);
+                        return (
+                          <div key={cat.id} className="space-y-3">
+                            <Link
+                              href={`/products?category=${cat.slug}`}
+                              onClick={() => setIsAllProductsHovered(false)}
+                              className="text-xs font-bold text-[#1E3A5F] uppercase tracking-wider hover:text-[#C8954A] transition-colors block border-b border-[#E8E0D5]/30 pb-2 font-serif"
+                            >
+                              {cat.name}
+                            </Link>
+                            {subCats.length > 0 && (
+                              <div className="space-y-1.5 pl-1">
+                                {subCats.map((sub) => (
+                                  <Link
+                                    key={sub.id}
+                                    href={`/products?category=${sub.slug}`}
+                                    onClick={() => setIsAllProductsHovered(false)}
+                                    className="block text-[11px] text-[#666666] hover:text-[#C8954A] hover:pl-1 transition-all font-semibold"
+                                  >
+                                    {sub.name}
+                                  </Link>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* 3. Blog */}
+              <div className="group relative h-full flex items-center">
+                <Link
+                  href="/blog"
+                  className="text-[11px] lg:text-xs font-bold uppercase tracking-widest py-3 text-[#1E3A5F] hover:text-[#C8954A] relative transition-colors"
+                >
+                  Blog
+                  <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-[#C8954A] scale-x-0 group-hover:scale-x-100 transition-transform origin-center duration-300" />
+                </Link>
+              </div>
+
+              {/* 4. Liên hệ */}
+              <div className="group relative h-full flex items-center">
+                <Link
+                  href="/contact"
+                  className="text-[11px] lg:text-xs font-bold uppercase tracking-widest py-3 text-[#1E3A5F] hover:text-[#C8954A] relative transition-colors"
+                >
+                  Liên hệ
+                  <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-[#C8954A] scale-x-0 group-hover:scale-x-100 transition-transform origin-center duration-300" />
+                </Link>
+              </div>
+            </nav>
+          ) : (
+            /* MENU PHÂN LOẠI ĐẦY ĐỦ CHO CÁC TRANG KHÁC */
+            <nav 
+              className="flex items-center justify-center gap-6 lg:gap-8 h-11 relative"
+              onMouseLeave={() => setHoveredCat(null)}
+            >
+              {/* 1. Trang chủ */}
+              <div className="group relative h-full flex items-center">
+                <Link
+                  href="/"
+                  className={`text-[11px] lg:text-xs font-bold uppercase tracking-widest py-3 relative transition-colors ${
+                    pathname === '/' ? 'text-[#C8954A]' : 'text-[#1E3A5F] hover:text-[#C8954A]'
+                  }`}
+                >
+                  Trang chủ
+                  <span className={`absolute bottom-0 left-0 right-0 h-0.5 bg-[#C8954A] transition-transform origin-center duration-300 ${
+                    pathname === '/' ? 'scale-x-100' : 'scale-x-0 group-hover:scale-x-100'
+                  }`} />
+                </Link>
+              </div>
+
+              {/* 2. MỚI */}
+              <div className="group relative h-full flex items-center">
+                <Link
+                  href="/products?sort=newest"
+                  className="text-[11px] lg:text-xs font-bold uppercase tracking-widest text-[#C8954A] hover:opacity-90 transition-colors py-3 relative"
+                >
+                  MỚI
+                  <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-[#C8954A] scale-x-0 group-hover:scale-x-100 transition-transform origin-center duration-300" />
+                </Link>
+              </div>
+
+              {/* Các danh mục Root động */}
+              {rootCategories.map((cat) => {
+                const subCats = getSubcategories(cat.id);
+                const hasSub = subCats.length > 0;
+
+                return (
+                  <div
+                    key={cat.id}
+                    className="group h-full flex items-center"
+                    onMouseEnter={() => {
+                      if (hasSub) setHoveredCat(cat.id);
+                      else setHoveredCat(null);
+                    }}
+                  >
+                    <Link
+                      href={`/products?category=${cat.slug}`}
+                      className={`text-[11px] lg:text-xs font-bold uppercase tracking-widest py-3 relative transition-colors cursor-pointer ${
+                        hoveredCat === cat.id ? 'text-[#C8954A]' : 'text-[#1E3A5F] hover:text-[#C8954A]'
+                      }`}
+                    >
+                      {cat.name}
+                      <span className={`absolute bottom-0 left-0 right-0 h-0.5 bg-[#C8954A] transition-transform origin-center duration-300 ${
+                        hoveredCat === cat.id ? 'scale-x-100' : 'scale-x-0 group-hover:scale-x-100'
+                      }`} />
+                    </Link>
+
+                    {/* Mega Menu panel của từng danh mục */}
+                    {hasSub && hoveredCat === cat.id && (
+                      <div className="absolute top-11 left-0 right-0 w-full bg-white border-b border-[#E8E0D5]/60 shadow-2xl py-8 z-50 animate-fade-in">
+                        <div className="max-w-7xl mx-auto px-8 grid grid-cols-4 gap-8 text-left">
+                          {subCats.map((sub) => {
+                            const grandChildren = getGrandchildren(sub.id);
+                            return (
+                              <div key={sub.id} className="space-y-3">
+                                <Link
+                                  href={`/products?category=${sub.slug}`}
+                                  className="text-xs font-bold text-[#1E3A5F] uppercase tracking-wider hover:text-[#C8954A] transition-colors block border-b border-[#E8E0D5]/30 pb-2 font-serif"
+                                >
+                                  {sub.name}
+                                </Link>
+                                {grandChildren.length > 0 && (
+                                  <div className="space-y-1.5 pl-1">
+                                    {grandChildren.map((grand) => (
+                                      <Link
+                                        key={grand.id}
+                                        href={`/products?category=${grand.slug}`}
+                                        className="block text-[11px] text-[#666666] hover:text-[#C8954A] hover:pl-1 transition-all font-semibold"
+                                      >
+                                        {grand.name}
+                                      </Link>
+                                    ))}
+                                  </div>
+                                )}
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+
+              {/* 3. Blog */}
+              <div className="group relative h-full flex items-center">
+                <Link
+                  href="/blog"
+                  className={`text-[11px] lg:text-xs font-bold uppercase tracking-widest py-3 relative transition-colors ${
+                    pathname?.startsWith('/blog') ? 'text-[#C8954A]' : 'text-[#1E3A5F] hover:text-[#C8954A]'
+                  }`}
+                >
+                  Blog
+                  <span className={`absolute bottom-0 left-0 right-0 h-0.5 bg-[#C8954A] transition-transform origin-center duration-300 ${
+                    pathname?.startsWith('/blog') ? 'scale-x-100' : 'scale-x-0 group-hover:scale-x-100'
+                  }`} />
+                </Link>
+              </div>
+            </nav>
+          )}
         </div>
       </div>
 
