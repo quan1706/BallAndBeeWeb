@@ -5,14 +5,18 @@ import pg from 'pg';
 const { Client } = pg;
 
 async function run() {
-  console.log('🔌 Đang đọc cấu hình kết nối từ .env.local...');
+  console.log('🔌 Đang tìm cấu hình kết nối từ .env.local...');
   
-  const envPath = path.resolve('.env.local');
+  let envPath = path.resolve('.env.local');
+  if (!fs.existsSync(envPath)) envPath = path.resolve('frontend', '.env.local');
+  if (!fs.existsSync(envPath)) envPath = path.resolve('../.env.local');
+  
   if (!fs.existsSync(envPath)) {
-    console.error('❌ Không tìm thấy file .env.local!');
+    console.error('❌ Không tìm thấy file .env.local ở bất kỳ thư mục nào!');
     process.exit(1);
   }
   
+  console.log(`✅ Tìm thấy file cấu hình tại: ${envPath}`);
   const envContent = fs.readFileSync(envPath, 'utf-8');
   const dbUrlMatch = envContent.match(/DATABASE_URL=["']?([^"'\r\n]+)["']?/);
   
@@ -23,13 +27,18 @@ async function run() {
   
   const connectionString = dbUrlMatch[1];
   
-  // Đọc file SQL setup
-  const sqlPath = path.resolve('src/lib/supabase_setup.sql');
+  // Tìm đường dẫn file SQL setup
+  let sqlPath = path.resolve('src/lib/supabase_setup.sql');
+  if (!fs.existsSync(sqlPath)) sqlPath = path.resolve('frontend/src/lib/supabase_setup.sql');
+  if (!fs.existsSync(sqlPath)) sqlPath = path.resolve('../src/lib/supabase_setup.sql');
+  if (!fs.existsSync(sqlPath)) sqlPath = path.resolve('../src/lib/supabase_setup.sql');
+  
   if (!fs.existsSync(sqlPath)) {
     console.error('❌ Không tìm thấy file supabase_setup.sql tại src/lib/!');
     process.exit(1);
   }
   
+  console.log(`✅ Tìm thấy file SQL setup tại: ${sqlPath}`);
   const sqlContent = fs.readFileSync(sqlPath, 'utf-8');
   
   console.log('🔌 Đang kết nối trực tiếp tới PostgreSQL database trên Supabase...');

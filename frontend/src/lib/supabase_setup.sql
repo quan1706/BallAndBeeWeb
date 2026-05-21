@@ -12,13 +12,13 @@ CREATE EXTENSION IF NOT EXISTS pgcrypto;
 -- ------------------------------------------------------------
 -- BƯỚC 2: KHỞI TẠO 2 TÀI KHOẢN ADMIN TRÊN SUPABASE AUTH
 -- Tài khoản 1: ballandbee@gmail.com | Mật khẩu: admin
--- Tài khoản 2: admin@gmail.com       | Mật khẩu: admin
+-- Tài khoản 2: admin@gmail.com       | Mật khẩu: admin123
 -- ------------------------------------------------------------
 DO $$
 DECLARE
   user1_id uuid := gen_random_uuid();
   user2_id uuid := gen_random_uuid();
-  hashed_password text := crypt('admin', gen_salt('bf', 10));
+  hashed_password text := crypt('admin123', gen_salt('bf', 10));
 BEGIN
   -- 1. Tạo tài khoản ballandbee@gmail.com nếu chưa tồn tại
   IF NOT EXISTS (SELECT 1 FROM auth.users WHERE email = 'ballandbee@gmail.com') THEN
@@ -33,7 +33,18 @@ BEGIN
       aud,
       role,
       created_at,
-      updated_at
+      updated_at,
+      confirmation_token,
+      recovery_token,
+      email_change_token_new,
+      email_change,
+      phone_change,
+      phone_change_token,
+      email_change_token_current,
+      reauthentication_token,
+      is_sso_user,
+      is_anonymous,
+      email_change_confirm_status
     ) VALUES (
       user1_id,
       '00000000-0000-0000-0000-000000000000',
@@ -45,7 +56,18 @@ BEGIN
       'authenticated',
       'authenticated',
       now(),
-      now()
+      now(),
+      '',
+      '',
+      '',
+      '',
+      '',
+      '',
+      '',
+      '',
+      false,
+      false,
+      0
     );
 
     INSERT INTO auth.identities (
@@ -53,6 +75,7 @@ BEGIN
       user_id,
       identity_data,
       provider,
+      provider_id,
       last_sign_in_at,
       created_at,
       updated_at
@@ -61,6 +84,7 @@ BEGIN
       user1_id,
       json_build_object('sub', user1_id, 'email', 'ballandbee@gmail.com'),
       'email',
+      user1_id::text,
       now(),
       now(),
       now()
@@ -84,7 +108,18 @@ BEGIN
       aud,
       role,
       created_at,
-      updated_at
+      updated_at,
+      confirmation_token,
+      recovery_token,
+      email_change_token_new,
+      email_change,
+      phone_change,
+      phone_change_token,
+      email_change_token_current,
+      reauthentication_token,
+      is_sso_user,
+      is_anonymous,
+      email_change_confirm_status
     ) VALUES (
       user2_id,
       '00000000-0000-0000-0000-000000000000',
@@ -96,7 +131,18 @@ BEGIN
       'authenticated',
       'authenticated',
       now(),
-      now()
+      now(),
+      '',
+      '',
+      '',
+      '',
+      '',
+      '',
+      '',
+      '',
+      false,
+      false,
+      0
     );
 
     INSERT INTO auth.identities (
@@ -104,6 +150,7 @@ BEGIN
       user_id,
       identity_data,
       provider,
+      provider_id,
       last_sign_in_at,
       created_at,
       updated_at
@@ -112,6 +159,7 @@ BEGIN
       user2_id,
       json_build_object('sub', user2_id, 'email', 'admin@gmail.com'),
       'email',
+      user2_id::text,
       now(),
       now(),
       now()

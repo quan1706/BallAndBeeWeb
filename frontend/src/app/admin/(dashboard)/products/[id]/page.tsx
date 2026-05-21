@@ -9,7 +9,7 @@ import { useProducts, useCategoriesFlat, useUpdateProduct } from '@/lib/api';
 export default function EditProductPage() {
   const router = useRouter();
   const params = useParams();
-  const id = Number(params?.id);
+  const id = params?.id as string;
 
   const { data: products = [], isLoading: isLoadingProducts } = useProducts();
   const { data: categoriesFlat = [], isLoading: isLoadingCats } = useCategoriesFlat();
@@ -35,7 +35,7 @@ export default function EditProductPage() {
 
   useEffect(() => {
     if (id && products.length > 0) {
-      const product = products.find((p) => p.id === id);
+      const product = products.find((p) => String(p.id) === id);
       if (product) {
         // Find category ID from category slug if possible, or we should use categoriesFlat to match
         const cat = categoriesFlat.find(c => c.slug === product.categorySlug || c.name === product.category);
@@ -71,7 +71,7 @@ export default function EditProductPage() {
         id,
         data: {
           ...formData,
-          categoryId: Number(formData.categoryId),
+          categoryId: formData.categoryId,
           visible: !isDraft,
         }
       });

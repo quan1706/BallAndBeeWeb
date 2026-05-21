@@ -9,7 +9,7 @@ import { useBlogPosts, useUpdateBlogPost } from '@/lib/api';
 export default function EditBlogPostPage() {
   const router = useRouter();
   const params = useParams();
-  const id = Number(params?.id);
+  const id = params?.id as string;
 
   const { data: blogPosts = [], isLoading } = useBlogPosts();
   const updateBlogPost = useUpdateBlogPost();
@@ -29,7 +29,7 @@ export default function EditBlogPostPage() {
 
   useEffect(() => {
     if (id && blogPosts.length > 0) {
-      const post = blogPosts.find((p) => p.id === id);
+      const post = blogPosts.find((p) => String(p.id) === id);
       if (post) {
         setFormData({
           title: post.title,
