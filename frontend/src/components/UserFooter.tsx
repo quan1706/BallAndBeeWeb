@@ -9,7 +9,7 @@ export function UserFooter() {
   const { data: settings } = useSettings();
 
   // Safe fallback values
-  const name = settings?.name || companyInfo.name;
+  const name = "BallAndBee'sHome";
   const tagline = settings?.tagline || companyInfo.tagline;
   const address = settings?.address || companyInfo.address;
   const phone = settings?.phone || companyInfo.phone;

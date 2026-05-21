@@ -20,7 +20,7 @@ export function UserHeader() {
     }
   };
 
-  const companyName = settings?.name || "BallAndBee'sHome";
+  const companyName = "BallAndBee'sHome";
 
   const formatLogo = (name: string) => {
     if (name.includes('&')) {
