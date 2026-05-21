@@ -3,21 +3,34 @@
 import { usePathname, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { LayoutDashboard, Package, FolderTree, FileText, Settings, LogOut, Bell } from 'lucide-react';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase';
 
 export default function AdminDashboardLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
+  const [isLoading, setIsLoading] = useState(true);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
 
   useEffect(() => {
     const checkAuth = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session) {
+          localStorage.removeItem('adminToken');
+          setIsAuthenticated(false);
+          router.push('/admin/login');
+        } else {
+          localStorage.setItem('adminToken', session.access_token);
+          setIsAuthenticated(true);
+        }
+      } catch (error) {
+        console.error('Lỗi xác thực:', error);
         localStorage.removeItem('adminToken');
+        setIsAuthenticated(false);
         router.push('/admin/login');
-      } else {
-        localStorage.setItem('adminToken', session.access_token);
+      } finally {
+        setIsLoading(false);
       }
     };
 
@@ -26,9 +39,12 @@ export default function AdminDashboardLayout({ children }: { children: React.Rea
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       if (event === 'SIGNED_OUT' || !session) {
         localStorage.removeItem('adminToken');
+        setIsAuthenticated(false);
         router.push('/admin/login');
       } else if (session) {
         localStorage.setItem('adminToken', session.access_token);
+        setIsAuthenticated(true);
+        setIsLoading(false);
       }
     });
 
@@ -44,8 +60,22 @@ export default function AdminDashboardLayout({ children }: { children: React.Rea
       console.error('Lỗi khi đăng xuất:', err);
     }
     localStorage.removeItem('adminToken');
+    setIsAuthenticated(false);
     router.push('/admin/login');
   };
+
+  // Hiển thị màn hình chờ xác thực sang trọng đồng bộ thương hiệu
+  if (isLoading || !isAuthenticated) {
+    return (
+      <div className="min-h-screen bg-[#030213] flex flex-col items-center justify-center gap-4">
+        <div className="w-10 h-10 border-2 border-[#C8954A] border-t-transparent rounded-full animate-spin" />
+        <div className="text-sm font-semibold tracking-widest text-[#C8954A] uppercase font-sans animate-pulse">
+          Đang xác thực quyền truy cập...
+        </div>
+      </div>
+    );
+  }
+
 
   const navItems = [
     { path: '/admin', icon: LayoutDashboard, label: 'Dashboard' },
