@@ -37,7 +37,7 @@ export function AdminLayout() {
     <div className="flex h-screen bg-[#F5F5F5]">
       <aside className="w-60 bg-[#1E3A5F] text-white flex flex-col">
         <div className="p-6">
-          <div className="text-lg font-bold text-[#C8954A] heading">BALLANDBEEHOME</div>
+          <div className="text-lg font-bold text-[#C8954A] heading">BallAndBee'sHome</div>
           <div className="text-xs text-white/60 mt-1">Admin</div>
         </div>
 

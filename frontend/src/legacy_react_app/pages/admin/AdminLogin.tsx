@@ -21,7 +21,7 @@ export function AdminLogin() {
       <div className="w-full max-w-md">
         <div className="bg-white rounded-2xl shadow-lg p-8">
           <div className="text-center mb-8">
-            <div className="text-2xl font-bold text-[#C8954A] heading mb-2">BALLANDBEEHOME</div>
+            <div className="text-2xl font-bold text-[#C8954A] heading mb-2">BallAndBee'sHome</div>
             <h2 className="heading text-2xl text-[#1E3A5F] mb-1">Đăng nhập quản trị</h2>
             <p className="text-sm text-[#E07B54]">Chỉ dành cho quản trị viên</p>
           </div>

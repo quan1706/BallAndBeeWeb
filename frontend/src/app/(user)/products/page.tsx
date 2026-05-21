@@ -14,8 +14,9 @@ function ProductsContent() {
   const { data: categories = [], isLoading: isLoadingCategories } = useCategories();
   const { data: products = [], isLoading: isLoadingProducts } = useProducts();
 
-  // Đọc tham số danh mục từ URL (?category=slug)
+  // Đọc tham số danh mục và tìm kiếm từ URL
   const categoryQuery = searchParams ? searchParams.get('category') : null;
+  const searchQueryParam = searchParams ? searchParams.get('search') : null;
 
   // State bộ lọc
   const [selectedCatSlug, setSelectedCatSlug] = useState<string>('all');
@@ -36,6 +37,15 @@ function ProductsContent() {
       setSelectedCatSlug('all');
     }
   }, [categoryQuery]);
+
+  // Cập nhật từ khóa tìm kiếm khi URL query thay đổi
+  useEffect(() => {
+    if (searchQueryParam) {
+      setSearchQuery(searchQueryParam);
+    } else {
+      setSearchQuery('');
+    }
+  }, [searchQueryParam]);
 
   // Hàm đệ quy kiểm tra xem sản phẩm có thuộc danh mục này hoặc bất kỳ danh mục con nào của nó không
   const isProductInCategory = (productCatSlug: string, targetCatSlug: string): boolean => {

@@ -3,7 +3,7 @@
 // Update these values as needed
 
 export const companyInfo = {
-  name: 'BALLANDBEEHOME',
+  name: "BallAndBee'sHome",
   tagline: 'Không gian sống - Tinh tế từng chi tiết',
   description:
     'Chúng tôi tạo ra những sản phẩm nội thất và trang trí độc đáo, mang đậm phong cách Việt hiện đại.',

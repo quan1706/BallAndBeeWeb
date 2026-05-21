@@ -275,7 +275,7 @@ export default function HomePage() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="grid md:grid-cols-2 gap-12 items-center">
             <div className="border-l-4 border-[#C8954A] pl-6">
-              <h2 className="heading text-3xl text-[#030213] mb-4 font-bold">Về BALLANDBEEHOME</h2>
+              <h2 className="heading text-3xl text-[#030213] mb-4 font-bold">Về BallAndBee'sHome</h2>
               <p className="text-[#717182] leading-relaxed mb-6">
                 Chúng tôi tạo ra những sản phẩm nội thất và trang trí độc đáo, mang đậm phong cách Việt
                 hiện đại. Mỗi sản phẩm đều được chọn lọc kỹ lưỡng, kết hợp giữa chất lượng cao cấp và

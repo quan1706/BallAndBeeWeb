@@ -5,12 +5,12 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { ArrowLeft, Save, Eye, Package } from 'lucide-react';
 import { ImageUploadZone } from '@/components/ImageUploadZone';
-import { useCategories } from '@/lib/api';
-import { API_BASE_URL } from '@/lib/api';
+import { useCategories, useCreateProduct } from '@/lib/api';
 
 export default function NewProductPage() {
   const router = useRouter();
   const { data: categories = [] } = useCategories();
+  const createProduct = useCreateProduct();
 
   const [formData, setFormData] = useState({
     name: '',
@@ -82,20 +82,11 @@ export default function NewProductPage() {
         image: formData.image,
       };
 
-      const res = await fetch(`${API_BASE_URL}/products`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-      });
-
-      if (!res.ok) {
-        const data = await res.json();
-        throw new Error(data.message || 'Lưu sản phẩm thất bại');
-      }
+      await createProduct.mutateAsync(payload);
 
       router.push('/admin/products');
     } catch (err: any) {
-      setError(err.message);
+      setError(err.message || 'Lưu sản phẩm thất bại');
       setIsSaving(false);
     }
   };

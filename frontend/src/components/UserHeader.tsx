@@ -2,15 +2,25 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { Search, Menu, X, ChevronDown, ChevronRight, Phone, User, Heart, ShoppingCart } from 'lucide-react';
-import { useCategories, useSettings } from '@/lib/api';
+import { useCategoriesFlat, useSettings } from '@/lib/api';
 
 export function UserHeader() {
-  const { data: categories = [] } = useCategories();
+  const { data: categories = [] } = useCategoriesFlat();
   const { data: settings } = useSettings();
+  const router = useRouter();
+  const [searchQuery, setSearchQuery] = useState('');
 
-  const companyName = settings?.name || "BALL & BEE";
+  const handleSearch = (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    if (searchQuery.trim()) {
+      router.push(`/products?search=${encodeURIComponent(searchQuery.trim())}`);
+      setIsMobileMenuOpen(false);
+    }
+  };
+
+  const companyName = settings?.name || "BallAndBee'sHome";
 
   const formatLogo = (name: string) => {
     if (name.includes('&')) {
@@ -18,6 +28,17 @@ export function UserHeader() {
       return (
         <>
           {parts[0]}<span className="text-[#C8954A]">&</span>{parts[1]}
+        </>
+      );
+    }
+    if (name.toLowerCase().includes('and')) {
+      const index = name.toLowerCase().indexOf('and');
+      const firstPart = name.substring(0, index);
+      const andPart = name.substring(index, index + 3);
+      const lastPart = name.substring(index + 3);
+      return (
+        <>
+          {firstPart}<span className="text-[#C8954A]">{andPart}</span>{lastPart}
         </>
       );
     }
@@ -83,14 +104,18 @@ export function UserHeader() {
         </div>
 
         {/* Center: Search Box (Pill rounded search bar) */}
-        <div className="hidden md:block relative w-96 max-w-md mx-auto">
-          <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+        <form onSubmit={handleSearch} className="hidden md:block relative w-96 max-w-md mx-auto">
+          <button type="submit" className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-[#C8954A] transition-colors cursor-pointer">
+            <Search className="w-4 h-4" />
+          </button>
           <input
             type="text"
             placeholder="Tìm kiếm sản phẩm..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
             className="w-full pl-11 pr-4 py-2 bg-gray-50 border border-gray-200 rounded-full text-[11px] outline-none focus:bg-white focus:border-[#C8954A] focus:ring-1 focus:ring-[#C8954A] transition-all font-semibold tracking-wide text-gray-700"
           />
-        </div>
+        </form>
 
         {/* Right: Elegant Actions (Icons with text underneath - Shopping Cart removed) */}
         <div className="flex items-center gap-6">
@@ -131,152 +156,109 @@ export function UserHeader() {
             className="flex items-center justify-center gap-6 lg:gap-8 h-11 relative"
             onMouseLeave={() => setHoveredCat(null)}
           >
-            {!isProductPage ? (
-              <>
-                {/* 1. Trang chủ */}
-                <div className="group relative h-full flex items-center">
+            {/* 1. Trang chủ */}
+            <div className="group relative h-full flex items-center">
+              <Link
+                href="/"
+                className={`text-[11px] lg:text-xs font-bold uppercase tracking-widest py-3 relative transition-colors ${
+                  pathname === '/' ? 'text-[#C8954A]' : 'text-[#1E3A5F] hover:text-[#C8954A]'
+                }`}
+              >
+                Trang chủ
+                <span className={`absolute bottom-0 left-0 right-0 h-0.5 bg-[#C8954A] transition-transform origin-center duration-300 ${
+                  pathname === '/' ? 'scale-x-100' : 'scale-x-0 group-hover:scale-x-100'
+                }`} />
+              </Link>
+            </div>
+
+            {/* 2. MỚI */}
+            <div className="group relative h-full flex items-center">
+              <Link
+                href="/products?sort=newest"
+                className="text-[11px] lg:text-xs font-bold uppercase tracking-widest text-[#C8954A] hover:opacity-90 transition-colors py-3 relative"
+              >
+                MỚI
+                <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-[#C8954A] scale-x-0 group-hover:scale-x-100 transition-transform origin-center duration-300" />
+              </Link>
+            </div>
+
+            {/* Các danh mục Root động */}
+            {rootCategories.map((cat) => {
+              const subCats = getSubcategories(cat.id);
+              const hasSub = subCats.length > 0;
+
+              return (
+                <div
+                  key={cat.id}
+                  className="group h-full flex items-center"
+                  onMouseEnter={() => {
+                    if (hasSub) setHoveredCat(cat.id);
+                    else setHoveredCat(null);
+                  }}
+                >
                   <Link
-                    href="/"
-                    className={`text-[11px] lg:text-xs font-bold uppercase tracking-widest py-3 relative transition-colors ${
-                      pathname === '/' ? 'text-[#C8954A]' : 'text-[#1E3A5F] hover:text-[#C8954A]'
+                    href={`/products?category=${cat.slug}`}
+                    className={`text-[11px] lg:text-xs font-bold uppercase tracking-widest py-3 relative transition-colors cursor-pointer ${
+                      hoveredCat === cat.id ? 'text-[#C8954A]' : 'text-[#1E3A5F] hover:text-[#C8954A]'
                     }`}
                   >
-                    Trang chủ
+                    {cat.name}
                     <span className={`absolute bottom-0 left-0 right-0 h-0.5 bg-[#C8954A] transition-transform origin-center duration-300 ${
-                      pathname === '/' ? 'scale-x-100' : 'scale-x-0 group-hover:scale-x-100'
+                      hoveredCat === cat.id ? 'scale-x-100' : 'scale-x-0 group-hover:scale-x-100'
                     }`} />
                   </Link>
-                </div>
 
-                {/* 2. Sản phẩm */}
-                <div className="group relative h-full flex items-center">
-                  <Link
-                    href="/products"
-                    className={`text-[11px] lg:text-xs font-bold uppercase tracking-widest py-3 relative transition-colors ${
-                      pathname?.startsWith('/products') ? 'text-[#C8954A]' : 'text-[#1E3A5F] hover:text-[#C8954A]'
-                    }`}
-                  >
-                    Sản phẩm
-                    <span className={`absolute bottom-0 left-0 right-0 h-0.5 bg-[#C8954A] transition-transform origin-center duration-300 ${
-                      pathname?.startsWith('/products') ? 'scale-x-100' : 'scale-x-0 group-hover:scale-x-100'
-                    }`} />
-                  </Link>
-                </div>
-
-                {/* 3. Blog */}
-                <div className="group relative h-full flex items-center">
-                  <Link
-                    href="/blog"
-                    className={`text-[11px] lg:text-xs font-bold uppercase tracking-widest py-3 relative transition-colors ${
-                      pathname?.startsWith('/blog') ? 'text-[#C8954A]' : 'text-[#1E3A5F] hover:text-[#C8954A]'
-                    }`}
-                  >
-                    Blog
-                    <span className={`absolute bottom-0 left-0 right-0 h-0.5 bg-[#C8954A] transition-transform origin-center duration-300 ${
-                      pathname?.startsWith('/blog') ? 'scale-x-100' : 'scale-x-0 group-hover:scale-x-100'
-                    }`} />
-                  </Link>
-                </div>
-              </>
-            ) : (
-              <>
-                {/* 1. Trang chủ */}
-                <div className="group relative h-full flex items-center">
-                  <Link
-                    href="/"
-                    className="text-[11px] lg:text-xs font-bold uppercase tracking-widest text-[#1E3A5F] hover:text-[#C8954A] transition-colors py-3 relative"
-                  >
-                    Trang chủ
-                    <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-[#C8954A] scale-x-0 group-hover:scale-x-100 transition-transform origin-center duration-300" />
-                  </Link>
-                </div>
-
-                {/* 2. Mới */}
-                <div className="group relative h-full flex items-center">
-                  <Link
-                    href="/products?sort=newest"
-                    className="text-[11px] lg:text-xs font-bold uppercase tracking-widest text-[#C8954A] hover:opacity-90 transition-colors py-3 relative"
-                  >
-                    MỚI
-                    <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-[#C8954A] scale-x-0 group-hover:scale-x-100 transition-transform origin-center duration-300" />
-                  </Link>
-                </div>
-
-                {/* Các danh mục Root động */}
-                {rootCategories.map((cat) => {
-                  const subCats = getSubcategories(cat.id);
-                  const hasSub = subCats.length > 0;
-
-                  return (
-                    <div
-                      key={cat.id}
-                      className="group h-full flex items-center"
-                      onMouseEnter={() => {
-                        if (hasSub) setHoveredCat(cat.id);
-                        else setHoveredCat(null);
-                      }}
-                    >
-                      <Link
-                        href={`/products?category=${cat.slug}`}
-                        className={`text-[11px] lg:text-xs font-bold uppercase tracking-widest py-3 relative transition-colors cursor-pointer ${
-                          hoveredCat === cat.id ? 'text-[#C8954A]' : 'text-[#1E3A5F] hover:text-[#C8954A]'
-                        }`}
-                      >
-                        {cat.name}
-                        <span className={`absolute bottom-0 left-0 right-0 h-0.5 bg-[#C8954A] transition-transform origin-center duration-300 ${
-                          hoveredCat === cat.id ? 'scale-x-100' : 'scale-x-0 group-hover:scale-x-100'
-                        }`} />
-                      </Link>
-
-                      {/* Mega Menu panel của từng danh mục */}
-                      {hasSub && hoveredCat === cat.id && (
-                        <div className="absolute top-11 left-0 right-0 w-full bg-white border-b border-[#E8E0D5]/60 shadow-2xl py-8 z-50 animate-fade-in">
-                          <div className="max-w-7xl mx-auto px-8 grid grid-cols-4 gap-8">
-                            {subCats.map((sub) => {
-                              const grandChildren = getGrandchildren(sub.id);
-                              return (
-                                <div key={sub.id} className="space-y-3">
-                                  <Link
-                                    href={`/products?category=${sub.slug}`}
-                                    className="text-xs font-bold text-[#1E3A5F] uppercase tracking-wider hover:text-[#C8954A] transition-colors block border-b border-[#E8E0D5]/30 pb-2 font-serif"
-                                  >
-                                    {sub.name}
-                                  </Link>
-                                  {grandChildren.length > 0 && (
-                                    <div className="space-y-1.5 pl-1">
-                                      {grandChildren.map((grand) => (
-                                        <Link
-                                          key={grand.id}
-                                          href={`/products?category=${grand.slug}`}
-                                          className="block text-[11px] text-[#666666] hover:text-[#C8954A] hover:pl-1 transition-all font-semibold"
-                                        >
-                                          {grand.name}
-                                        </Link>
-                                      ))}
-                                    </div>
-                                  )}
+                  {/* Mega Menu panel của từng danh mục */}
+                  {hasSub && hoveredCat === cat.id && (
+                    <div className="absolute top-11 left-0 right-0 w-full bg-white border-b border-[#E8E0D5]/60 shadow-2xl py-8 z-50 animate-fade-in">
+                      <div className="max-w-7xl mx-auto px-8 grid grid-cols-4 gap-8">
+                        {subCats.map((sub) => {
+                          const grandChildren = getGrandchildren(sub.id);
+                          return (
+                            <div key={sub.id} className="space-y-3">
+                              <Link
+                                href={`/products?category=${sub.slug}`}
+                                className="text-xs font-bold text-[#1E3A5F] uppercase tracking-wider hover:text-[#C8954A] transition-colors block border-b border-[#E8E0D5]/30 pb-2 font-serif"
+                              >
+                                {sub.name}
+                              </Link>
+                              {grandChildren.length > 0 && (
+                                <div className="space-y-1.5 pl-1">
+                                  {grandChildren.map((grand) => (
+                                    <Link
+                                      key={grand.id}
+                                      href={`/products?category=${grand.slug}`}
+                                      className="block text-[11px] text-[#666666] hover:text-[#C8954A] hover:pl-1 transition-all font-semibold"
+                                    >
+                                      {grand.name}
+                                    </Link>
+                                  ))}
                                 </div>
-                              );
-                            })}
-                          </div>
-                        </div>
-                      )}
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
                     </div>
-                  );
-                })}
-
-                {/* 3. Blog */}
-                <div className="group relative h-full flex items-center">
-                  <Link
-                    href="/blog"
-                    className="text-[11px] lg:text-xs font-bold uppercase tracking-widest text-[#1E3A5F] hover:text-[#C8954A] transition-colors py-3 relative"
-                  >
-                    Blog
-                    <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-[#C8954A] scale-x-0 group-hover:scale-x-100 transition-transform origin-center duration-300" />
-                  </Link>
+                  )}
                 </div>
-              </>
-            )}
+              );
+            })}
+
+            {/* 3. Blog */}
+            <div className="group relative h-full flex items-center">
+              <Link
+                href="/blog"
+                className={`text-[11px] lg:text-xs font-bold uppercase tracking-widest py-3 relative transition-colors ${
+                  pathname?.startsWith('/blog') ? 'text-[#C8954A]' : 'text-[#1E3A5F] hover:text-[#C8954A]'
+                }`}
+              >
+                Blog
+                <span className={`absolute bottom-0 left-0 right-0 h-0.5 bg-[#C8954A] transition-transform origin-center duration-300 ${
+                  pathname?.startsWith('/blog') ? 'scale-x-100' : 'scale-x-0 group-hover:scale-x-100'
+                }`} />
+              </Link>
+            </div>
           </nav>
         </div>
       </div>
@@ -285,14 +267,18 @@ export function UserHeader() {
       {isMobileMenuOpen && (
         <div className="md:hidden border-t border-[#E8E0D5] bg-white p-4 space-y-4 animate-fade-in shadow-inner max-h-[85vh] overflow-y-auto">
           {/* Mobile Search */}
-          <div className="relative">
-            <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+          <form onSubmit={handleSearch} className="relative">
+            <button type="submit" className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-[#C8954A] transition-colors cursor-pointer">
+              <Search className="w-4 h-4" />
+            </button>
             <input
               type="text"
               placeholder="Tìm kiếm..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
               className="w-full pl-10 pr-4 py-2 bg-gray-50 border border-gray-200 rounded-full text-xs outline-none focus:bg-white transition-all font-semibold"
             />
-          </div>
+          </form>
 
           <div className="space-y-1">
             <Link

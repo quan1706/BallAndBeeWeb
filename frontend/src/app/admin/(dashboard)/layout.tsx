@@ -4,19 +4,45 @@ import { usePathname, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { LayoutDashboard, Package, FolderTree, FileText, Settings, LogOut, Bell } from 'lucide-react';
 import { useEffect } from 'react';
+import { supabase } from '@/lib/supabase';
 
 export default function AdminDashboardLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
 
   useEffect(() => {
-    const token = localStorage.getItem('adminToken');
-    if (!token) {
-      router.push('/admin/login');
-    }
+    const checkAuth = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        localStorage.removeItem('adminToken');
+        router.push('/admin/login');
+      } else {
+        localStorage.setItem('adminToken', session.access_token);
+      }
+    };
+
+    checkAuth();
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === 'SIGNED_OUT' || !session) {
+        localStorage.removeItem('adminToken');
+        router.push('/admin/login');
+      } else if (session) {
+        localStorage.setItem('adminToken', session.access_token);
+      }
+    });
+
+    return () => {
+      subscription.unsubscribe();
+    };
   }, [router]);
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    try {
+      await supabase.auth.signOut();
+    } catch (err) {
+      console.error('Lỗi khi đăng xuất:', err);
+    }
     localStorage.removeItem('adminToken');
     router.push('/admin/login');
   };
@@ -40,7 +66,7 @@ export default function AdminDashboardLayout({ children }: { children: React.Rea
     <div className="flex h-screen bg-[#F5F5F5] text-gray-800">
       <aside className="w-60 bg-[#1E3A5F] text-white flex flex-col">
         <div className="p-6">
-          <div className="text-lg font-bold text-[#C8954A] heading">BALLANDBEEHOME</div>
+          <div className="text-lg font-bold text-[#C8954A] heading">BallAndBee'sHome</div>
           <div className="text-xs text-white/60 mt-1">Admin</div>
         </div>
 

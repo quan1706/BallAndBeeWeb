@@ -94,26 +94,29 @@ Sử dụng các lệnh sau để kích hoạt quy trình tác chiến chuyên s
 - **/update-docs**: Đồng bộ tài liệu với mã nguồn.
 - **/visually**: Trực quan hóa logic & kiến trúc.
 
+---
+
 ## 🚀 Hướng dẫn tùy chỉnh: Dự án E-Commerce BallAndBeeWEB
 
 Dự án BallAndBeeWEB là nền tảng trưng bày sản phẩm trực tuyến cao cấp, tập trung chính vào việc quản lý lưu trữ danh mục sản phẩm và hiển thị giao diện xem sản phẩm trực quan, đẳng cấp cho khách hàng. Mọi hành động của Agent `tamquan` trong dự án này PHẢI tuân thủ các quy tắc sau:
 
 ### 1. Kiến trúc & Công nghệ (Tech Stack)
-- **Cơ cấu Monorepo**: Quản lý bằng `pnpm`. Cấu trúc thư mục gồm:
-  - `frontend/`: Ứng dụng Next.js 15 (App Router), React 19, Tailwind CSS v4, TypeScript.
-  - `backend/`: Minimal API .NET 8, Entity Framework Core.
-- **Frontend State Management**:
-  - `zustand` (phiên bản ^5.0.0): Dùng duy nhất cho UI State (Dark Mode, bộ lọc tạm thời, Drawer, Modal, v.v.).
-  - `@tanstack/react-query` (phiên bản ^5.0.0): Bắt buộc dùng cho Server State (danh sách sản phẩm, danh mục categories, dữ liệu lấy từ API của .NET 8).
+- **Kiến trúc Frontend-only (Direct Client Database)**: Dự án hiện hành chạy độc lập tại thư mục `frontend/`. 
+  - **Không sử dụng backend .NET 8 cục bộ trong workspace này**.
+  - Frontend Next.js kết nối **trực tiếp** tới Supabase PostgreSQL qua `@supabase/supabase-js` ở phía Client-side.
+- **Công nghệ Frontend**:
+  - Framework: Next.js 15 (App Router), React 19, Tailwind CSS v4, TypeScript.
+- **Quản lý trạng thái (State Management)**:
+  - **Zustand** (phiên bản ^5.0.0): Chỉ dùng duy nhất cho UI State nội bộ (Dark Mode, trạng thái bộ lọc tạm thời, Drawer, Modal mở/đóng...).
+  - **React Query** (`@tanstack/react-query` phiên bản ^5.0.0): Bắt buộc sử dụng cho Server State. Mọi hành động lấy dữ liệu (Categories, Products, Settings, Blog...) đều phải qua React Query Hooks và gọi trực tiếp Supabase Client để có cơ chế cache tốt nhất.
 - **Giao diện & Chuyển động (UI & Animation)**:
-  - Cấu trúc CSS: Sử dụng Tailwind CSS v4 (`@import "tailwindcss"` kết hợp cấu hình `@theme inline` trong `globals.css`).
-  - Thư viện Component: Shadcn UI (xây dựng trên Radix UI), Material UI (MUI - dùng cho các layout/legacy components cụ thể).
-  - Animation: Framer Motion (import qua thư viện `motion` mới) và `lucide-react` cho biểu tượng.
+  - CSS: Tailwind CSS v4 (`@import "tailwindcss"` kết hợp cấu hình `@theme inline` trong `globals.css`).
+  - Component Library: Shadcn UI (Radix UI), Material UI (MUI - dùng cho một số layout/legacy components cụ thể).
+  - Animation: Framer Motion (import từ `motion`) và `lucide-react` cho biểu tượng.
   - Carousel sản phẩm: `embla-carousel-react`, `react-slick`.
-- **Backend & Database**:
-  - Server: C# .NET 8 Web API (Minimal API), hỗ trợ Swagger UI làm tài liệu API.
-  - Cơ sở dữ liệu: PostgreSQL (sử dụng `Npgsql.EntityFrameworkCore.PostgreSQL`).
-  - Quản lý DB: Sử dụng EF Core Migrations để cập nhật database.
+- **Cơ sở dữ liệu**:
+  - PostgreSQL lưu trữ trực tuyến trên nền tảng **Supabase**. Mọi truy vấn và sửa đổi dữ liệu được gọi trực tiếp qua SDK `supabase-js`.
+  - **Bảo mật RLS**: Supabase kích hoạt Row Level Security (RLS) cho các bảng. Vì trang quản trị Admin đang sử dụng Mock Authentication ở phía Client-side (lưu token giả lập), các yêu cầu ghi/sửa dữ liệu từ Frontend luôn được gửi đi với vai trò `anon` (ẩn danh). Cần thiết lập chính sách RLS cho phép `anon` thực hiện ghi/sửa hoặc tắt RLS phù hợp ở cấp database đối với các bảng quản trị (ví dụ: `system_settings`).
 
 ### 2. Tiêu chuẩn Thiết kế & UI/UX Trưng bày (Design & Visual Standards)
 - **Tư duy UI/UX**: Luôn kích hoạt tư duy thiết kế cao cấp và tối giản. Sử dụng hiệu ứng glassmorphism, gradient mượt mà, micro-animations và hover effects sống động để tạo cảm giác sang trọng.
@@ -121,7 +124,7 @@ Dự án BallAndBeeWEB là nền tảng trưng bày sản phẩm trực tuyến 
   - **Primary**: `#030213` (Tone tối sâu thẳm, quý phái).
   - **Secondary**: `oklch(0.95 0.0058 264.53)` (Trắng ngà tinh tế).
   - **Muted**: `#ececf0` và `muted-foreground` là `#717182`.
-  - **Accent**: `#e9ebef`.
+  - **Accent**: `#C8954A` (Vàng ánh kim cao cấp).
   - **Destructive**: `#d4183d`.
 - **Tập trung hiển thị sản phẩm**:
   - Grid sản phẩm: Thiết kế responsive 2/3/4 cột cân đối, bo góc tinh tế (`--radius: 0.625rem`), đổ bóng nhiều tầng mượt mà.
@@ -131,7 +134,7 @@ Dự án BallAndBeeWEB là nền tảng trưng bày sản phẩm trực tuyến 
 ### 3. Quy tắc Code & Di cư (Coding & Migration Rules)
 - **Di chuyển mã nguồn cũ (Legacy Migration)**: Giao diện cũ (React Router) nằm trong `frontend/src/legacy_react_app`. Khi phát triển các trang trưng bày sản phẩm mới, hãy tham chiếu và di chuyển dần mã nguồn từ `legacy_react_app` sang Next.js App Router (`frontend/src/app`) một cách chính xác, chuyển đổi từ React Router sang API router của Next.js (`next/navigation`, `next/link`).
 - **Tách biệt State**: Không lạm dụng Zustand cho Server Data. Mọi API call lấy danh sách sản phẩm hay danh mục đều phải được cache và quản lý thông qua TanStack Query.
-- **Backend C#**: Tuân thủ chuẩn viết code sạch (Clean Code), viết Minimal API ngắn gọn, có cấu trúc xử lý Exception toàn cục (Global Exception Handling) và tối ưu hóa truy vấn Entity Framework Core để lấy dữ liệu sản phẩm nhanh nhất.
+- **Mã nguồn sạch**: Viết mã nguồn Next.js/React chuẩn hóa, phân tách rõ ràng giữa Server Components (cho SEO) và Client Components (khi cần tương tác/State).
 
 ### 4. Quy trình Nghiệp vụ Sản phẩm (Product Core Workflows)
 - **Lưu trữ Sản phẩm**: Quản lý danh mục (Categories), Sản phẩm (Products), Biến thể sản phẩm (Product Variants - nếu có), Hình ảnh sản phẩm (Images), và Thuộc tính kỹ thuật (Attributes).
@@ -141,4 +144,4 @@ Dự án BallAndBeeWEB là nền tảng trưng bày sản phẩm trực tuyến 
 - **Tối ưu tìm kiếm (Search & SEO)**: Thiết kế các trang sản phẩm thân thiện với SEO, cung cấp Meta Tags đầy đủ (title, description, open graph) tự động cho từng sản phẩm để hỗ trợ Google Search tốt nhất.
 
 ---
-*Cập nhật lần cuối: 18/05/2026 — Thiết lập Cấu hình Agent tamquan cho dự án BallAndBeeWEB.*
+*Cập nhật lần cuối: 21/05/2026 — Điều chỉnh cấu hình công nghệ tránh nhầm lẫn vai trò cho Agent tamquan.*

@@ -5,10 +5,24 @@ import { useSettings, useUpdateSettings } from '@/lib/api';
 
 export default function AdminSettings() {
   const [activeTab, setActiveTab] = useState<'company' | 'contact' | 'map'>('company');
-  const { data: settings, isLoading } = useSettings();
+  const { data: settings, isLoading, isError } = useSettings();
   const updateSettingsMutation = useUpdateSettings();
 
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState<{
+    id?: any;
+    name: string;
+    tagline: string;
+    description: string;
+    phone: string;
+    zalo: string;
+    email: string;
+    address: string;
+    hours: string;
+    facebook: string;
+    instagram: string;
+    tiktok: string;
+    googleMapsEmbed: string;
+  }>({
     name: '',
     tagline: '',
     description: '',
@@ -26,6 +40,7 @@ export default function AdminSettings() {
   useEffect(() => {
     if (settings) {
       setFormData({
+        id: settings.id, // Quan trọng: giữ lại id để update đúng bản ghi
         name: settings.name || '',
         tagline: settings.tagline || '',
         description: settings.description || '',
@@ -49,12 +64,16 @@ export default function AdminSettings() {
   ] as const;
 
   const handleSave = () => {
-    updateSettingsMutation.mutate(formData, {
+    if (!formData.id) {
+      alert('Không tìm thấy cài đặt hệ thống! Vui lòng tải lại trang.');
+      return;
+    }
+    updateSettingsMutation.mutate(formData as any, {
       onSuccess: () => {
-        alert('Lưu thay đổi thành công!');
+        alert('✅ Lưu thay đổi thành công!');
       },
       onError: (err) => {
-        alert('Có lỗi xảy ra: ' + err.message);
+        alert('❌ Có lỗi xảy ra: ' + err.message);
       },
     });
   };
@@ -63,6 +82,27 @@ export default function AdminSettings() {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
         <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-[#C8954A]" />
+      </div>
+    );
+  }
+
+  if (isError || !settings) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[400px] text-center gap-4">
+        <div className="w-16 h-16 bg-red-50 rounded-full flex items-center justify-center">
+          <span className="text-2xl">⚠️</span>
+        </div>
+        <div>
+          <p className="font-semibold text-red-700 text-lg">Không thể tải cài đặt hệ thống</p>
+          <p className="text-sm text-gray-500 mt-1">Bảng <code className="bg-gray-100 px-1 rounded">system_settings</code> chưa có dữ liệu hoặc bị chặn bởi RLS.</p>
+          <p className="text-xs text-gray-400 mt-2">Vui lòng kiểm tra Supabase Dashboard hoặc chạy lại script seed.</p>
+        </div>
+        <button
+          onClick={() => window.location.reload()}
+          className="px-4 py-2 bg-[#C8954A] text-white rounded-lg text-sm font-semibold hover:bg-[#B8854A] transition-colors"
+        >
+          Thử lại
+        </button>
       </div>
     );
   }
